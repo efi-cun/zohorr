@@ -29,7 +29,11 @@ from app.database import (
     get_questions_by_topic,
     save_question,
     delete_question,
-    get_sessions_history
+    get_sessions_history,
+    get_all_participants,
+    get_participant_detail_with_answers,
+    get_analytics_dashboard_data,
+    get_all_participants_export_rows
 )
 from app.game_manager import game_manager
 from app.config import HOST, PORT
@@ -447,6 +451,53 @@ async def delete_question_endpoint(question_id: str, request: Request):
 async def list_sessions_endpoint(request: Request):
     require_auth(request)
     return get_sessions_history()
+
+# --- Participants & Evaluated People ---
+
+@app.get("/api/admin/participants")
+async def list_participants_endpoint(
+    request: Request,
+    search: Optional[str] = Query(None),
+    topic: Optional[str] = Query(None)
+):
+    """Returns list of evaluated participants with optional search and topic filtering."""
+    require_auth(request)
+    return get_all_participants(topic_filter=topic, search=search)
+
+@app.get("/api/admin/participants/{participant_id}")
+async def get_participant_detail_endpoint(participant_id: str, request: Request):
+    """Returns detailed answers and metrics for an individual participant."""
+    require_auth(request)
+    detail = get_participant_detail_with_answers(participant_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Participante no encontrado.")
+    return detail
+
+@app.get("/api/admin/participants/export/csv")
+async def export_all_participants_csv(request: Request):
+    """Exports all evaluated participants to CSV with UTF-8 BOM for Excel."""
+    require_auth(request)
+    rows = get_all_participants_export_rows()
+    if not rows:
+        raise HTTPException(status_code=404, detail="No hay participantes registrados para exportar.")
+
+    output = io.StringIO()
+    output.write('\ufeff')  # BOM for Excel
+    writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
+    writer.writeheader()
+    writer.writerows(rows)
+
+    response = Response(content=output.getvalue(), media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=Evaluados_CyberArena_CUN_Consolidado.csv"
+    return response
+
+# --- Advanced Analytics ---
+
+@app.get("/api/admin/analytics")
+async def get_analytics_endpoint(request: Request):
+    """Returns comprehensive analytics metrics, topic breakdown, leaderboard and question stats."""
+    require_auth(request)
+    return get_analytics_dashboard_data()
 
 # --- Real-Time WebSocket Hub ---
 

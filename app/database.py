@@ -709,3 +709,275 @@ def get_sessions_history():
             return rows
     finally:
         conn.close()
+
+# ==============================================================================
+# PARTICIPANTS & COMPREHENSIVE ANALYTICS
+# ==============================================================================
+
+def get_all_participants(topic_filter: Optional[str] = None, search: Optional[str] = None):
+    """Retrieves all evaluated participants with session title and performance."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            query = """
+                SELECT 
+                    p.id,
+                    p.session_id,
+                    p.room_code,
+                    p.full_name,
+                    p.email,
+                    p.role_or_area,
+                    p.nickname,
+                    p.avatar,
+                    p.score,
+                    p.correct_answers,
+                    p.total_answered,
+                    p.streak,
+                    p.final_rank,
+                    p.created_at,
+                    COALESCE(s.title, 'Evaluación General') AS evaluation_title,
+                    COALESCE(ROUND((p.correct_answers::numeric / NULLIF(p.total_answered, 0)) * 100, 1), 0) AS effectiveness_percent
+                FROM recruit_participants p
+                LEFT JOIN recruit_game_sessions s ON p.session_id = s.id
+                WHERE 1=1
+            """
+            params = []
+            if search and search.strip():
+                s_param = f"%{search.strip()}%"
+                query += " AND (p.full_name ILIKE %s OR p.email ILIKE %s OR p.role_or_area ILIKE %s OR p.nickname ILIKE %s)"
+                params.extend([s_param, s_param, s_param, s_param])
+            if topic_filter and topic_filter.strip() and topic_filter.strip().lower() != "all":
+                t_param = f"%{topic_filter.strip()}%"
+                query += " AND (s.room_code ILIKE %s OR s.title ILIKE %s)"
+                params.extend([t_param, t_param])
+            query += " ORDER BY p.created_at DESC;"
+
+            cur.execute(query, tuple(params) if params else None)
+            rows = cur.fetchall()
+            for r in rows:
+                r["id"] = str(r["id"])
+                if r.get("session_id"):
+                    r["session_id"] = str(r["session_id"])
+                if r.get("created_at"):
+                    r["created_at"] = r["created_at"].isoformat()
+                r["score"] = int(r.get("score") or 0)
+                r["correct_answers"] = int(r.get("correct_answers") or 0)
+                r["total_answered"] = int(r.get("total_answered") or 0)
+                r["effectiveness_percent"] = float(r.get("effectiveness_percent") or 0.0)
+            return rows
+    finally:
+        conn.close()
+
+def get_participant_detail_with_answers(participant_id: str):
+    """Retrieves single participant details along with breakdown of their submitted answers."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    p.id,
+                    p.session_id,
+                    p.room_code,
+                    p.full_name,
+                    p.email,
+                    p.role_or_area,
+                    p.nickname,
+                    p.avatar,
+                    p.score,
+                    p.correct_answers,
+                    p.total_answered,
+                    p.created_at,
+                    COALESCE(s.title, 'Evaluación General') AS evaluation_title,
+                    COALESCE(ROUND((p.correct_answers::numeric / NULLIF(p.total_answered, 0)) * 100, 1), 0) AS effectiveness_percent
+                FROM recruit_participants p
+                LEFT JOIN recruit_game_sessions s ON p.session_id = s.id
+                WHERE p.id::text = %s;
+            """, (participant_id,))
+            part = cur.fetchone()
+            if not part:
+                return None
+            part["id"] = str(part["id"])
+            if part.get("session_id"):
+                part["session_id"] = str(part["session_id"])
+            if part.get("created_at"):
+                part["created_at"] = part["created_at"].isoformat()
+            part["score"] = int(part.get("score") or 0)
+            part["correct_answers"] = int(part.get("correct_answers") or 0)
+            part["total_answered"] = int(part.get("total_answered") or 0)
+            part["effectiveness_percent"] = float(part.get("effectiveness_percent") or 0.0)
+
+            cur.execute("""
+                SELECT 
+                    a.id,
+                    a.question_id,
+                    COALESCE(q.title, a.question_id) AS question_title,
+                    COALESCE(q.question_text, '') AS question_text,
+                    COALESCE(q.category, 'GENERAL') AS category,
+                    COALESCE(q.type, 'CHOICE') AS question_type,
+                    a.chosen_answer,
+                    q.correct_answer,
+                    a.is_correct,
+                    a.response_time_ms,
+                    a.points_awarded,
+                    a.created_at
+                FROM recruit_answers a
+                LEFT JOIN recruit_questions q ON a.question_id = q.id
+                WHERE a.participant_id::text = %s
+                ORDER BY a.created_at ASC;
+            """, (participant_id,))
+            answers = cur.fetchall()
+            for ans in answers:
+                ans["id"] = str(ans["id"])
+                if ans.get("created_at"):
+                    ans["created_at"] = ans["created_at"].isoformat()
+                if isinstance(ans.get("chosen_answer"), str):
+                    try:
+                        ans["chosen_answer"] = json.loads(ans["chosen_answer"])
+                    except Exception:
+                        pass
+                if isinstance(ans.get("correct_answer"), str):
+                    try:
+                        ans["correct_answer"] = json.loads(ans["correct_answer"])
+                    except Exception:
+                        pass
+            part["answers"] = answers
+            return part
+    finally:
+        conn.close()
+
+def get_analytics_dashboard_data():
+    """Calculates comprehensive platform analytics: participation, scores, topics, and question difficulty."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # 1. Global Metrics
+            cur.execute("""
+                SELECT 
+                    COUNT(p.id) AS total_participants,
+                    COALESCE(ROUND(AVG(p.score), 0), 0) AS avg_score,
+                    COALESCE(MAX(p.score), 0) AS max_score,
+                    COALESCE(SUM(p.correct_answers), 0) AS total_correct_answers,
+                    COALESCE(SUM(p.total_answered), 0) AS total_answered,
+                    COALESCE(ROUND((SUM(p.correct_answers)::numeric / NULLIF(SUM(p.total_answered), 0)) * 100, 1), 0) AS global_accuracy_percent,
+                    COUNT(CASE WHEN (p.correct_answers::numeric / NULLIF(p.total_answered, 0)) >= 0.7 THEN 1 END) AS approved_count
+                FROM recruit_participants p;
+            """)
+            glob = cur.fetchone() or {}
+            total_p = int(glob.get("total_participants") or 0)
+            approved = int(glob.get("approved_count") or 0)
+            approval_rate = round((approved / total_p * 100), 1) if total_p > 0 else 0.0
+
+            # 2. Topic / Session Breakdown
+            cur.execute("""
+                SELECT 
+                    COALESCE(s.title, 'Evaluación General') AS topic_title,
+                    COUNT(p.id) AS participants_count,
+                    COALESCE(ROUND(AVG(p.score), 0), 0) AS avg_score,
+                    COALESCE(MAX(p.score), 0) AS top_score,
+                    COALESCE(ROUND(AVG((p.correct_answers::numeric / NULLIF(p.total_answered, 0)) * 100), 1), 0) AS avg_accuracy
+                FROM recruit_participants p
+                LEFT JOIN recruit_game_sessions s ON p.session_id = s.id
+                GROUP BY s.title
+                ORDER BY participants_count DESC;
+            """)
+            topic_stats = cur.fetchall()
+            for ts in topic_stats:
+                ts["participants_count"] = int(ts.get("participants_count") or 0)
+                ts["avg_score"] = int(ts.get("avg_score") or 0)
+                ts["top_score"] = int(ts.get("top_score") or 0)
+                ts["avg_accuracy"] = float(ts.get("avg_accuracy") or 0.0)
+
+            # 3. Top Leaderboard (Cuadro de Honor)
+            cur.execute("""
+                SELECT 
+                    p.id,
+                    p.full_name,
+                    p.email,
+                    p.role_or_area,
+                    p.nickname,
+                    p.avatar,
+                    p.score,
+                    p.correct_answers,
+                    p.total_answered,
+                    COALESCE(ROUND((p.correct_answers::numeric / NULLIF(p.total_answered, 0)) * 100, 1), 0) AS effectiveness_percent,
+                    COALESCE(s.title, 'Evaluación') AS topic_title
+                FROM recruit_participants p
+                LEFT JOIN recruit_game_sessions s ON p.session_id = s.id
+                ORDER BY p.score DESC, p.correct_answers DESC
+                LIMIT 10;
+            """)
+            top_p = cur.fetchall()
+            for tp in top_p:
+                tp["id"] = str(tp["id"])
+                tp["score"] = int(tp.get("score") or 0)
+                tp["correct_answers"] = int(tp.get("correct_answers") or 0)
+                tp["total_answered"] = int(tp.get("total_answered") or 0)
+                tp["effectiveness_percent"] = float(tp.get("effectiveness_percent") or 0.0)
+
+            # 4. Question Difficulty Diagnosis (Hardest & Most Failed)
+            cur.execute("""
+                SELECT 
+                    q.id,
+                    q.title,
+                    q.category,
+                    COUNT(a.id) AS attempts_count,
+                    SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END) AS correct_count,
+                    COALESCE(ROUND((SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(a.id), 0)) * 100, 1), 0) AS correct_percent,
+                    COALESCE(ROUND(AVG(a.response_time_ms) / 1000.0, 1), 0) AS avg_time_sec
+                FROM recruit_answers a
+                JOIN recruit_questions q ON a.question_id = q.id
+                GROUP BY q.id, q.title, q.category
+                ORDER BY correct_percent ASC, attempts_count DESC
+                LIMIT 8;
+            """)
+            q_stats = cur.fetchall()
+            for qs in q_stats:
+                qs["attempts_count"] = int(qs.get("attempts_count") or 0)
+                qs["correct_count"] = int(qs.get("correct_count") or 0)
+                qs["correct_percent"] = float(qs.get("correct_percent") or 0.0)
+                qs["avg_time_sec"] = float(qs.get("avg_time_sec") or 0.0)
+
+            return {
+                "total_participants": total_p,
+                "avg_score": int(glob.get("avg_score") or 0),
+                "max_score": int(glob.get("max_score") or 0),
+                "total_answered": int(glob.get("total_answered") or 0),
+                "global_accuracy_percent": float(glob.get("global_accuracy_percent") or 0.0),
+                "approval_rate": approval_rate,
+                "topic_breakdown": topic_stats,
+                "top_participants": top_p,
+                "question_stats": q_stats
+            }
+    finally:
+        conn.close()
+
+def get_all_participants_export_rows():
+    """Retrieves all participants across all evaluations for CSV/Excel export."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY p.score DESC) AS "No",
+                    p.full_name AS "Nombre Completo",
+                    p.email AS "Correo Institucional",
+                    p.role_or_area AS "Cargo o Area",
+                    p.nickname AS "Nickname",
+                    COALESCE(s.title, 'Evaluacion General') AS "Evaluacion",
+                    p.score AS "Puntaje Total",
+                    p.correct_answers AS "Aciertos",
+                    p.total_answered AS "Total Preguntas",
+                    COALESCE(ROUND((p.correct_answers::numeric / NULLIF(p.total_answered, 0)) * 100, 1), 0) AS "Efectividad Porcentaje",
+                    CASE 
+                        WHEN (p.correct_answers::numeric / NULLIF(p.total_answered, 0)) >= 0.8 THEN 'Excelente'
+                        WHEN (p.correct_answers::numeric / NULLIF(p.total_answered, 0)) >= 0.6 THEN 'Aprobado'
+                        ELSE 'Requiere Refuerzo'
+                    END AS "Resultado",
+                    TO_CHAR(p.created_at, 'YYYY-MM-DD HH24:MI') AS "Fecha Realizacion"
+                FROM recruit_participants p
+                LEFT JOIN recruit_game_sessions s ON p.session_id = s.id
+                ORDER BY p.score DESC;
+            """)
+            return cur.fetchall()
+    finally:
+        conn.close()

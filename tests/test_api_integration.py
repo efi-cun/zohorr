@@ -132,5 +132,31 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(stats_res.status_code, 200)
         self.assertIn("total_topics", stats_res.json())
 
+        # Participants list & search
+        participants_res = self.client.get("/api/admin/participants", headers={"Authorization": f"Bearer {facil_token}"})
+        self.assertEqual(participants_res.status_code, 200)
+        parts_list = participants_res.json()
+        self.assertIsInstance(parts_list, list)
+        self.assertGreater(len(parts_list), 0)
+        first_p_id = parts_list[0]["id"]
+
+        # Participant individual detail
+        detail_res = self.client.get(f"/api/admin/participants/{first_p_id}", headers={"Authorization": f"Bearer {facil_token}"})
+        self.assertEqual(detail_res.status_code, 200)
+        self.assertIn("answers", detail_res.json())
+
+        # Participants CSV export
+        export_p_res = self.client.get("/api/admin/participants/export/csv", headers={"Authorization": f"Bearer {facil_token}"})
+        self.assertEqual(export_p_res.status_code, 200)
+        self.assertIn("text/csv", export_p_res.headers["content-type"])
+
+        # Analytics data
+        analytics_res = self.client.get("/api/admin/analytics", headers={"Authorization": f"Bearer {facil_token}"})
+        self.assertEqual(analytics_res.status_code, 200)
+        adata = analytics_res.json()
+        self.assertIn("total_participants", adata)
+        self.assertIn("topic_breakdown", adata)
+        self.assertIn("top_participants", adata)
+
 if __name__ == "__main__":
     unittest.main()

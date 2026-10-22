@@ -5,6 +5,15 @@
 let currentUser = null;
 let currentActiveTopic = null;
 let currentQuestionsList = [];
+let allParticipantsList = [];
+let participantFilterTimer = null;
+
+const avatarEmojis = {
+  cyber_scout: "🤖",
+  talent_hunter: "⚡",
+  quantum_ai: "🧠",
+  matrix_scout: "🎯"
+};
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', async () => {
@@ -12,6 +21,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   await checkAuth();
   await loadOverviewStats();
   await loadTopics();
+  await loadParticipants();
+  await loadAnalytics();
   if (currentUser && currentUser.role === 'admin') {
     await loadUsers();
   }
@@ -103,7 +114,7 @@ function switchTab(tabName) {
     return;
   }
 
-  const tabs = ['overview', 'topics', 'users', 'sessions'];
+  const tabs = ['overview', 'topics', 'participants', 'analytics', 'sessions', 'users'];
   tabs.forEach(t => {
     const sec = document.getElementById(`tab-${t}`);
     const btn = document.getElementById(`tabBtn-${t}`);
@@ -126,6 +137,13 @@ function switchTab(tabName) {
   }
   if (activeMobBtn) {
     activeMobBtn.className = "tab-btn px-2.5 py-1 text-[11px] font-orbitron text-cyan-400 whitespace-nowrap";
+  }
+
+  // Auto-refresh data when switching to dynamic tabs
+  if (tabName === 'participants') {
+    loadParticipants();
+  } else if (tabName === 'analytics') {
+    loadAnalytics();
   }
 }
 
@@ -690,6 +708,347 @@ async function deleteUser(userId) {
     await loadOverviewStats();
   } catch (err) {
     alert("Error: " + err.message);
+  }
+}
+
+// ==============================================================================
+// PERSONAS EVALUADAS / PARTICIPANTES
+// ==============================================================================
+
+async function loadParticipants() {
+  try {
+    const res = await fetch('/api/admin/participants', { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    allParticipantsList = await res.json();
+
+    // Populate topic filter dropdown with unique topics
+    const filterSelect = document.getElementById('participantTopicFilter');
+    if (filterSelect) {
+      const currentVal = filterSelect.value || 'all';
+      filterSelect.innerHTML = '<option value="all">Todas las Evaluaciones</option>';
+      const uniqueTopics = [...new Set(allParticipantsList.map(p => p.evaluation_title).filter(Boolean))];
+      uniqueTopics.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.innerText = t;
+        if (t === currentVal) opt.selected = true;
+        filterSelect.appendChild(opt);
+      });
+    }
+
+    filterParticipants();
+  } catch (err) {
+    console.error("Error loading participants:", err);
+  }
+}
+
+function debounceFilterParticipants() {
+  clearTimeout(participantFilterTimer);
+  participantFilterTimer = setTimeout(() => {
+    filterParticipants();
+  }, 250);
+}
+
+function filterParticipants() {
+  const searchTerm = (document.getElementById('participantSearchInput')?.value || '').toLowerCase().trim();
+  const selectedTopic = document.getElementById('participantTopicFilter')?.value || 'all';
+
+  const filtered = allParticipantsList.filter(p => {
+    const matchesSearch = !searchTerm || 
+      (p.full_name && p.full_name.toLowerCase().includes(searchTerm)) ||
+      (p.email && p.email.toLowerCase().includes(searchTerm)) ||
+      (p.role_or_area && p.role_or_area.toLowerCase().includes(searchTerm)) ||
+      (p.nickname && p.nickname.toLowerCase().includes(searchTerm));
+
+    const matchesTopic = selectedTopic === 'all' || p.evaluation_title === selectedTopic;
+    return matchesSearch && matchesTopic;
+  });
+
+  renderParticipantsTable(filtered);
+}
+
+function renderParticipantsTable(participants) {
+  const tbody = document.getElementById('participantsTableBody');
+  const countBadge = document.getElementById('participantsCountBadge');
+  if (countBadge) {
+    countBadge.innerText = `${participants.length} Evaluado${participants.length === 1 ? '' : 's'}`;
+  }
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  if (participants.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="p-8 text-center text-slate-500 font-mono text-xs">
+          No se encontraron personas evaluadas con los criterios de búsqueda seleccionados.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  participants.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-900/50 transition-colors";
+
+    const eff = p.effectiveness_percent || 0;
+    let effColor = "text-red-400";
+    let effBg = "bg-red-500";
+    if (eff >= 80) {
+      effColor = "text-emerald-400";
+      effBg = "bg-emerald-500";
+    } else if (eff >= 60) {
+      effColor = "text-amber-400";
+      effBg = "bg-amber-500";
+    }
+
+    const emoji = avatarEmojis[p.avatar] || "⚡";
+    const dateStr = p.created_at ? new Date(p.created_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '---';
+
+    tr.innerHTML = `
+      <td class="p-3.5">
+        <div class="flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-base flex-shrink-0">${emoji}</span>
+          <div>
+            <div class="text-white font-bold">${p.full_name}</div>
+            <div class="text-[11px] text-cyan-400 font-mono">@${p.nickname}</div>
+          </div>
+        </div>
+      </td>
+      <td class="p-3.5 text-slate-300 font-mono">${p.email}</td>
+      <td class="p-3.5 text-slate-400">${p.role_or_area || 'Sin especificar'}</td>
+      <td class="p-3.5">
+        <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-cyan-300 text-[11px] font-mono">
+          ${p.evaluation_title}
+        </span>
+      </td>
+      <td class="p-3.5 min-w-[150px]">
+        <div class="flex items-center justify-between text-[11px] mb-1">
+          <span class="${effColor} font-bold">${eff}%</span>
+          <span class="text-slate-400">${p.correct_answers} / ${p.total_answered} aciertos</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div class="${effBg} h-1.5 rounded-full transition-all duration-500" style="width: ${Math.min(eff, 100)}%"></div>
+        </div>
+      </td>
+      <td class="p-3.5">
+        <span class="font-orbitron font-bold text-white text-sm">${p.score.toLocaleString()}</span>
+        <span class="text-[10px] text-slate-500 font-mono"> pts</span>
+      </td>
+      <td class="p-3.5 text-slate-400 text-[11px] whitespace-nowrap">${dateStr}</td>
+      <td class="p-3.5 text-right">
+        <button onclick="viewParticipantAnswers('${p.id}')" title="Ver desglose de respuestas" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-400 text-cyan-400 hover:text-white text-[11px] font-mono inline-flex items-center gap-1 transition-all cursor-pointer">
+          <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+          <span>Respuestas</span>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  lucide.createIcons();
+}
+
+async function viewParticipantAnswers(participantId) {
+  try {
+    const res = await fetch(`/api/admin/participants/${participantId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error("No se pudo cargar el detalle del participante");
+    const p = await res.json();
+
+    document.getElementById('paModalTopic').innerText = p.evaluation_title;
+    document.getElementById('paModalName').innerText = p.full_name;
+    document.getElementById('paModalMeta').innerText = `${p.role_or_area || 'Sin cargo'} ● ${p.email} ● @${p.nickname}`;
+    document.getElementById('paModalScore').innerText = `${(p.score || 0).toLocaleString()} pts`;
+    document.getElementById('paModalAccuracy').innerText = `${p.effectiveness_percent || 0}%`;
+    document.getElementById('paModalCorrects').innerText = `${p.correct_answers} / ${p.total_answered}`;
+
+    const container = document.getElementById('paModalAnswersList');
+    container.innerHTML = "";
+
+    const answers = p.answers || [];
+    if (answers.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-8 text-slate-500 font-mono text-xs">
+          No hay respuestas individuales registradas en detalle para esta sesión.
+        </div>
+      `;
+    } else {
+      answers.forEach((ans, idx) => {
+        const isOk = ans.is_correct;
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-xl border ${isOk ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-red-950/20 border-red-900/50'} space-y-1.5 text-xs`;
+
+        const chosenText = typeof ans.chosen_answer === 'object' ? JSON.stringify(ans.chosen_answer) : (ans.chosen_answer || '---');
+        const correctText = typeof ans.correct_answer === 'object' ? JSON.stringify(ans.correct_answer) : (ans.correct_answer || '---');
+        const timeSec = ans.response_time_ms ? (ans.response_time_ms / 1000).toFixed(1) : '---';
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-orbitron font-bold text-white text-[11px]">PREGUNTA #${idx + 1}: ${ans.question_title}</span>
+            <span class="px-2 py-0.5 rounded font-mono text-[10px] font-bold ${isOk ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'}">
+              ${isOk ? '✓ CORRECTA (+' + ans.points_awarded + ' pts)' : '✗ INCORRECTA (0 pts)'}
+            </span>
+          </div>
+          <p class="text-slate-300 font-mono text-[11px]">${ans.question_text || ''}</p>
+          <div class="pt-2 border-t border-slate-800/60 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <span class="text-slate-400">Respuesta seleccionada:</span>
+              <div class="font-bold ${isOk ? 'text-emerald-400' : 'text-red-400'}">${chosenText}</div>
+            </div>
+            ${!isOk ? `
+              <div>
+                <span class="text-slate-400">Respuesta correcta:</span>
+                <div class="font-bold text-emerald-400">${correctText}</div>
+              </div>
+            ` : `
+              <div>
+                <span class="text-slate-400">Tiempo de respuesta:</span>
+                <div class="text-cyan-400 font-bold">${timeSec}s</div>
+              </div>
+            `}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    document.getElementById('participantAnswersModal').classList.remove('hidden');
+    lucide.createIcons();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+// ==============================================================================
+// ADVANCED ANALYTICS & DIAGNOSTICS
+// ==============================================================================
+
+async function loadAnalytics() {
+  try {
+    const res = await fetch('/api/admin/analytics', { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    // 1. Executive KPIs
+    const elPart = document.getElementById('analyticsTotalParticipants');
+    const elAcc = document.getElementById('analyticsAvgAccuracy');
+    const elApp = document.getElementById('analyticsApprovalRate');
+    const elMax = document.getElementById('analyticsMaxScore');
+
+    if (elPart) elPart.innerText = (data.total_participants || 0).toLocaleString();
+    if (elAcc) elAcc.innerText = `${data.global_accuracy_percent || 0}%`;
+    if (elApp) elApp.innerText = `${data.approval_rate || 0}%`;
+    if (elMax) elMax.innerText = `${(data.max_score || 0).toLocaleString()} pts`;
+
+    // 2. Topics Breakdown
+    const topicsContainer = document.getElementById('analyticsTopicsContainer');
+    if (topicsContainer) {
+      topicsContainer.innerHTML = "";
+      const topics = data.topic_breakdown || [];
+      if (topics.length === 0) {
+        topicsContainer.innerHTML = `<div class="col-span-full text-center text-slate-500 font-mono text-xs py-4">No hay datos de desempeño por tema aún.</div>`;
+      } else {
+        topics.forEach(t => {
+          const acc = t.avg_accuracy || 0;
+          let color = acc >= 70 ? 'text-emerald-400' : (acc >= 50 ? 'text-amber-400' : 'text-red-400');
+          let barBg = acc >= 70 ? 'bg-emerald-500' : (acc >= 50 ? 'bg-amber-500' : 'bg-red-500');
+
+          const card = document.createElement('div');
+          card.className = "p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3";
+          card.innerHTML = `
+            <div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">TEMA</span>
+              <h4 class="font-orbitron text-sm font-bold text-white mt-1 line-clamp-1">${t.topic_title}</h4>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div>
+                <span class="text-[10px] text-slate-400">EVALUADOS</span>
+                <div class="text-white font-bold">${t.participants_count}</div>
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-400">PROM. PUNTAJE</span>
+                <div class="text-cyan-400 font-bold">${(t.avg_score || 0).toLocaleString()} pts</div>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-[11px] font-mono mb-1">
+                <span class="text-slate-400">Efectividad promedio</span>
+                <span class="${color} font-bold">${acc}%</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div class="${barBg} h-1.5 rounded-full" style="width: ${Math.min(acc, 100)}%"></div>
+              </div>
+            </div>
+          `;
+          topicsContainer.appendChild(card);
+        });
+      }
+    }
+
+    // 3. Leaderboard Table
+    const lbBody = document.getElementById('analyticsLeaderboardBody');
+    if (lbBody) {
+      lbBody.innerHTML = "";
+      const leaders = data.top_participants || [];
+      if (leaders.length === 0) {
+        lbBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500 font-mono text-xs">Aún no hay puntuaciones registradas.</td></tr>`;
+      } else {
+        leaders.forEach((p, idx) => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-900/50 transition-colors";
+          let medal = `#${idx + 1}`;
+          if (idx === 0) medal = "🥇";
+          else if (idx === 1) medal = "🥈";
+          else if (idx === 2) medal = "🥉";
+
+          tr.innerHTML = `
+            <td class="p-2.5 font-bold text-center">${medal}</td>
+            <td class="p-2.5">
+              <div class="text-white font-bold">${p.full_name}</div>
+              <div class="text-[10px] text-slate-400">${p.role_or_area || ''}</div>
+            </td>
+            <td class="p-2.5 text-cyan-300 text-[11px]">${p.topic_title}</td>
+            <td class="p-2.5 text-slate-300 font-mono">${p.correct_answers}/${p.total_answered} (${p.effectiveness_percent}%)</td>
+            <td class="p-2.5 text-right font-orbitron font-bold text-cyan-400">${p.score.toLocaleString()}</td>
+          `;
+          lbBody.appendChild(tr);
+        });
+      }
+    }
+
+    // 4. Hard Questions Container
+    const hardContainer = document.getElementById('analyticsHardQuestionsContainer');
+    if (hardContainer) {
+      hardContainer.innerHTML = "";
+      const questions = data.question_stats || [];
+      if (questions.length === 0) {
+        hardContainer.innerHTML = `<div class="text-center text-slate-500 font-mono text-xs py-4">No hay respuestas registradas para análisis de dificultad.</div>`;
+      } else {
+        questions.forEach(q => {
+          const pct = q.correct_percent || 0;
+          let badge = pct <= 35 ? 'bg-red-950 text-red-400 border-red-800' : 'bg-amber-950 text-amber-400 border-amber-800';
+
+          const card = document.createElement('div');
+          card.className = "p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1";
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">${q.category || 'TEMA'}</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border font-bold ${badge}">
+                ${pct}% TASA DE ACIERTO
+              </span>
+            </div>
+            <div class="font-bold text-white text-xs">${q.title}</div>
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+              <span>${q.correct_count} de ${q.attempts_count} respuestas acertadas</span>
+              <span>Tiempo prom: ${q.avg_time_sec}s</span>
+            </div>
+          `;
+          hardContainer.appendChild(card);
+        });
+      }
+    }
+
+  } catch (err) {
+    console.error("Analytics load error:", err);
   }
 }
 
