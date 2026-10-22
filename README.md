@@ -1,6 +1,6 @@
-# 🚀 Zoho Recruit: Cyber-Talent Arena (CUN 2026)
+# 🚀 Cyber-Talent Arena (CUN 2026) - Plataforma Multitemática de Capacitaciones
 
-Plataforma interactiva, tecnológica y futurista en tiempo real estilo **Kahoot Cyberpunk** para capacitaciones y evaluación dinámica de conocimientos sobre **Zoho Recruit**.
+Plataforma interactiva, tecnológica y futurista en tiempo real estilo **Kahoot Cyberpunk** para capacitaciones dinámicas y evaluación gamificada en múltiples temas institucionales (**Zoho Recruit**, **Seguridad y Salud en el Trabajo - SST**, **Inducción y Cultura CUN**, etc.).
 
 Diseñada para proyección en pantalla compartida (Google Meet / Teams / Proyector) con interacción simultánea de participantes desde smartphones o computadores personales, integrando persistencia en vivo con **Supabase** (PostgreSQL).
 
@@ -8,7 +8,14 @@ Diseñada para proyección en pantalla compartida (Google Meet / Teams / Proyect
 
 ## 🌟 Características Principales
 
-1. **Estética Sci-Fi & Cyberpunk de Alto Impacto:**
+1. **Selector Multitemático de Capacitaciones:**
+   - La consola del instructor (`/host`) incluye un menú desplegable para alternar al instante entre diferentes capacitaciones:
+     - 🎯 **Zoho Recruit:** Ciclo completo de atracción, requisiciones, parsing y contratación.
+     - 🛡️ **Seguridad y Salud en el Trabajo (SST):** Evacuación, pausas activas, ergonomía, brigadas y COPASST.
+     - 🏛️ **Inducción & Cultura CUN:** Identidad, ciclos propedéuticos, autoservicio y ADN CUN.
+   - Cada tema cuenta con su propio banco de 10 desafíos interactivos y PIN predeterminado (`ZR2026`, `SST2026`, `CUN2026`).
+
+2. **Estética Sci-Fi & Cyberpunk de Alto Impacto:**
    - Interfaz espacial oscura con neones holográficos (Cyan, Magenta, Ámbar, Esmeralda).
    - Efectos de sonido cibernéticos sintetizados nativamente en el navegador (**Web Audio API**) sin necesidad de descargar archivos de audio externos.
    - Animaciones táctiles, radares de jugadores y podio 3D con lluvia de confeti.
