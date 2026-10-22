@@ -67,9 +67,65 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(admin_users_res.status_code, 200)
         self.assertGreaterEqual(len(admin_users_res.json()), 2)
 
-        # Facilitator is forbidden from managing users
+        # Facilitator is forbidden from managing users (GET, POST, DELETE)
         facil_users_res = self.client.get("/api/admin/users", headers={"Authorization": f"Bearer {facil_token}"})
         self.assertEqual(facil_users_res.status_code, 403)
+
+        facil_create_user = self.client.post("/api/admin/users", headers={"Authorization": f"Bearer {facil_token}"}, json={
+            "username": "unauthorized_user",
+            "email": "hacker@cun.edu.co",
+            "password": "Password123*",
+            "full_name": "Test User",
+            "role": "admin"
+        })
+        self.assertEqual(facil_create_user.status_code, 403)
+
+        # Topic visibility and deletion tests
+        # 1. Create a temporary test topic
+        create_topic_res = self.client.post("/api/admin/topics", headers={"Authorization": f"Bearer {admin_token}"}, json={
+            "id": "test_qa_topic",
+            "name": "Evaluación Temporal de Prueba",
+            "badge": "TEST QA",
+            "description": "Tema para pruebas de ocultamiento y eliminación",
+            "default_pin": "TEST2026"
+        })
+        self.assertEqual(create_topic_res.status_code, 200)
+
+        # 2. Hide evaluation (set is_active = False)
+        hide_res = self.client.put("/api/admin/topics/test_qa_topic/visibility", headers={"Authorization": f"Bearer {admin_token}"}, json={
+            "is_active": False
+        })
+        self.assertEqual(hide_res.status_code, 200)
+        self.assertFalse(hide_res.json()["is_active"])
+
+        # 3. Verify it does NOT appear in public/host /api/topics
+        host_topics = self.client.get("/api/topics").json()
+        self.assertNotIn("test_qa_topic", [t["id"] for t in host_topics])
+
+        # 4. Verify it DOES appear in /api/admin/topics with is_active = False
+        admin_topics = self.client.get("/api/admin/topics", headers={"Authorization": f"Bearer {admin_token}"}).json()
+        test_topic_meta = next((t for t in admin_topics if t["id"] == "test_qa_topic"), None)
+        self.assertIsNotNone(test_topic_meta)
+        self.assertFalse(test_topic_meta["is_active"])
+
+        # 5. Make it visible again (set is_active = True)
+        show_res = self.client.put("/api/admin/topics/test_qa_topic/visibility", headers={"Authorization": f"Bearer {admin_token}"}, json={
+            "is_active": True
+        })
+        self.assertEqual(show_res.status_code, 200)
+        self.assertTrue(show_res.json()["is_active"])
+
+        # Verify it now appears in public /api/topics
+        host_topics_after = self.client.get("/api/topics").json()
+        self.assertIn("test_qa_topic", [t["id"] for t in host_topics_after])
+
+        # 6. Delete test topic
+        del_res = self.client.delete("/api/admin/topics/test_qa_topic", headers={"Authorization": f"Bearer {admin_token}"})
+        self.assertEqual(del_res.status_code, 200)
+
+        # Verify it no longer exists anywhere
+        admin_topics_final = self.client.get("/api/admin/topics", headers={"Authorization": f"Bearer {admin_token}"}).json()
+        self.assertNotIn("test_qa_topic", [t["id"] for t in admin_topics_final])
 
         # Both can access topics and stats
         stats_res = self.client.get("/api/admin/stats", headers={"Authorization": f"Bearer {facil_token}"})

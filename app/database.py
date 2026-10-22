@@ -2,6 +2,7 @@ import logging
 import json
 import hashlib
 import secrets
+from typing import Optional, List, Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from app.config import DATABASE_URL
@@ -111,10 +112,12 @@ def init_db():
             description TEXT,
             default_pin VARCHAR(30),
             created_by VARCHAR(100) DEFAULT 'system',
+            is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         );
         """,
         """
+        ALTER TABLE recruit_topics ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
         ALTER TABLE recruit_questions ADD COLUMN IF NOT EXISTS topic_id VARCHAR(50) DEFAULT 'zoho_recruit';
         CREATE INDEX IF NOT EXISTS idx_questions_topic ON recruit_questions(topic_id);
         """
@@ -458,7 +461,7 @@ def delete_user(user_id: str):
 # TOPICS & EVALUATIONS CRUD
 # ==============================================================================
 
-def get_all_topics_from_db():
+def get_all_topics_from_db(include_hidden: bool = True):
     """Returns topics list with count of questions."""
     conn = get_connection()
     try:
@@ -472,16 +475,20 @@ def get_all_topics_from_db():
                     t.default_pin, 
                     t.created_by,
                     t.created_at,
+                    COALESCE(t.is_active, TRUE) AS is_active,
                     COUNT(q.id) AS question_count
                 FROM recruit_topics t
                 LEFT JOIN recruit_questions q ON t.id = q.topic_id
-                GROUP BY t.id, t.name, t.badge, t.description, t.default_pin, t.created_by, t.created_at
+                GROUP BY t.id, t.name, t.badge, t.description, t.default_pin, t.created_by, t.created_at, t.is_active
                 ORDER BY t.created_at ASC;
             """)
             rows = cur.fetchall()
             for r in rows:
                 r["created_at"] = r["created_at"].isoformat() if r.get("created_at") else None
                 r["question_count"] = int(r.get("question_count") or 0)
+                r["is_active"] = bool(r.get("is_active", True))
+            if not include_hidden:
+                return [r for r in rows if r["is_active"]]
             return rows
     finally:
         conn.close()
@@ -492,13 +499,14 @@ def get_topic_from_db(topic_id: str):
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-                SELECT id, name, badge, description, default_pin, created_by, created_at
+                SELECT id, name, badge, description, default_pin, created_by, created_at, COALESCE(is_active, TRUE) AS is_active
                 FROM recruit_topics
                 WHERE id = %s;
             """, (topic_id,))
             topic = cur.fetchone()
             if not topic:
                 return None
+            topic["is_active"] = bool(topic.get("is_active", True))
             
             cur.execute("""
                 SELECT id, topic_id, order_num, type, category, title, question_text, options, correct_answer, explanation, time_limit_sec, points_base
@@ -559,6 +567,31 @@ def delete_topic(topic_id: str):
             cur.execute("DELETE FROM recruit_topics WHERE id = %s;", (topic_id,))
             conn.commit()
             return True
+    finally:
+        conn.close()
+
+def toggle_topic_visibility(topic_id: str, is_active: Optional[bool] = None) -> bool:
+    """Toggles or sets the active/visible status of a topic."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            if is_active is None:
+                cur.execute("""
+                    UPDATE recruit_topics 
+                    SET is_active = NOT COALESCE(is_active, TRUE) 
+                    WHERE id = %s
+                    RETURNING is_active;
+                """, (topic_id,))
+            else:
+                cur.execute("""
+                    UPDATE recruit_topics 
+                    SET is_active = %s 
+                    WHERE id = %s
+                    RETURNING is_active;
+                """, (is_active, topic_id))
+            row = cur.fetchone()
+            conn.commit()
+            return bool(row[0]) if row else True
     finally:
         conn.close()
 

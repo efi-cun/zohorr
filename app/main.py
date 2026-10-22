@@ -25,6 +25,7 @@ from app.database import (
     get_topic_from_db,
     save_topic,
     delete_topic,
+    toggle_topic_visibility,
     get_questions_by_topic,
     save_question,
     delete_question,
@@ -202,9 +203,9 @@ class TopicChangeRequest(BaseModel):
 
 @app.get("/api/topics")
 async def get_topics_endpoint():
-    """Returns available training topics and metadata."""
+    """Returns available training topics and metadata (only visible/active topics for Host)."""
     from app.questions_data import get_all_topics
-    return get_all_topics()
+    return get_all_topics(include_hidden=False)
 
 @app.post("/api/room/{room_code}/topic")
 async def change_room_topic_endpoint(room_code: str, req: TopicChangeRequest):
@@ -365,10 +366,13 @@ class SaveTopicPayload(BaseModel):
     description: str = ""
     default_pin: str = "CUN2026"
 
+class TopicVisibilityPayload(BaseModel):
+    is_active: bool
+
 @app.get("/api/admin/topics")
 async def list_admin_topics(request: Request):
     require_auth(request)
-    return get_all_topics_from_db()
+    return get_all_topics_from_db(include_hidden=True)
 
 @app.get("/api/admin/topics/{topic_id}")
 async def get_topic_detail(topic_id: str, request: Request):
@@ -391,9 +395,15 @@ async def save_topic_endpoint(payload: SaveTopicPayload, request: Request):
     )
     return {"success": True, "topic": t}
 
+@app.put("/api/admin/topics/{topic_id}/visibility")
+async def toggle_topic_visibility_endpoint(topic_id: str, payload: TopicVisibilityPayload, request: Request):
+    require_auth(request)
+    new_status = toggle_topic_visibility(topic_id, payload.is_active)
+    return {"success": True, "topic_id": topic_id, "is_active": new_status}
+
 @app.delete("/api/admin/topics/{topic_id}")
 async def delete_topic_endpoint(topic_id: str, request: Request):
-    require_auth(request, require_admin=True)
+    require_auth(request)
     delete_topic(topic_id)
     return {"success": True, "deleted_id": topic_id}
 

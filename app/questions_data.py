@@ -588,11 +588,11 @@ def get_topic(topic_id: str = "zoho_recruit"):
         pass
     return TRAINING_TOPICS.get(topic_id, TRAINING_TOPICS["zoho_recruit"])
 
-def get_all_topics():
+def get_all_topics(include_hidden: bool = False):
     """Returns summaries of all available topics from DB or in-memory catalog."""
     try:
         from app.database import get_all_topics_from_db
-        db_topics = get_all_topics_from_db()
+        db_topics = get_all_topics_from_db(include_hidden=include_hidden)
         if db_topics and len(db_topics) > 0:
             return db_topics
     except Exception:
@@ -606,6 +606,7 @@ def get_all_topics():
             "badge": tdata["badge"],
             "description": tdata["description"],
             "default_pin": tdata["default_pin"],
+            "is_active": True,
             "question_count": len(tdata["questions"])
         })
     return topics_list

@@ -40,18 +40,30 @@ async function checkAuth() {
     document.getElementById('heroUserName').innerText = currentUser.full_name.toUpperCase();
     
     const roleBadge = document.getElementById('userRoleBadge');
+    const usersTabBtn = document.getElementById('tabBtn-users');
+    const mobileUsersTabBtn = document.getElementById('mobileTabBtn-users');
+    const quickAddUserBtn = document.getElementById('quickAddUserBtn');
+
     if (currentUser.role === 'admin') {
       roleBadge.innerText = '👑 ADMINISTRADOR';
       roleBadge.className = 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800';
+      if (usersTabBtn) usersTabBtn.classList.remove('hidden');
+      if (mobileUsersTabBtn) mobileUsersTabBtn.classList.remove('hidden');
+      if (quickAddUserBtn) quickAddUserBtn.classList.remove('hidden');
     } else {
       roleBadge.innerText = '🎓 FACILITADOR';
       roleBadge.className = 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800';
       
-      // Hide admin-only tab
-      const usersTabBtn = document.getElementById('tabBtn-users');
+      // Strict role check: Facilitators cannot create users or manage roles
       if (usersTabBtn) usersTabBtn.classList.add('hidden');
-      const quickAddUserBtn = document.getElementById('quickAddUserBtn');
+      if (mobileUsersTabBtn) mobileUsersTabBtn.classList.add('hidden');
       if (quickAddUserBtn) quickAddUserBtn.classList.add('hidden');
+
+      // If user section was somehow open, redirect to overview
+      const currentUsersSec = document.getElementById('tab-users');
+      if (currentUsersSec && !currentUsersSec.classList.contains('hidden')) {
+        switchTab('overview');
+      }
     }
 
   } catch (err) {
@@ -84,21 +96,36 @@ function getAuthHeaders() {
 // --- Navigation Tabs Switcher ---
 
 function switchTab(tabName) {
+  // Role gate: Prevent facilitators from opening the Users tab
+  if (tabName === 'users' && (!currentUser || currentUser.role !== 'admin')) {
+    alert("Acceso Restringido: Tu perfil de Facilitador no tiene permisos para crear usuarios ni asignar roles.");
+    switchTab('overview');
+    return;
+  }
+
   const tabs = ['overview', 'topics', 'users', 'sessions'];
   tabs.forEach(t => {
     const sec = document.getElementById(`tab-${t}`);
     const btn = document.getElementById(`tabBtn-${t}`);
+    const mobBtn = document.getElementById(`mobileTabBtn-${t}`);
     if (sec) sec.classList.add('hidden');
     if (btn) {
       btn.className = "tab-btn px-3 py-1.5 rounded-lg text-xs font-orbitron tracking-wider flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";
+    }
+    if (mobBtn) {
+      mobBtn.className = "tab-btn px-2.5 py-1 text-[11px] font-orbitron text-slate-400 whitespace-nowrap";
     }
   });
 
   const activeSec = document.getElementById(`tab-${tabName}`);
   const activeBtn = document.getElementById(`tabBtn-${tabName}`);
+  const activeMobBtn = document.getElementById(`mobileTabBtn-${tabName}`);
   if (activeSec) activeSec.classList.remove('hidden');
   if (activeBtn) {
     activeBtn.className = "tab-btn px-3 py-1.5 rounded-lg text-xs font-orbitron tracking-wider flex items-center gap-1.5 transition-all text-cyan-400 bg-cyan-950/60 border border-cyan-500/40";
+  }
+  if (activeMobBtn) {
+    activeMobBtn.className = "tab-btn px-2.5 py-1 text-[11px] font-orbitron text-cyan-400 whitespace-nowrap";
   }
 }
 
@@ -141,23 +168,29 @@ function renderOverviewTopics(topics) {
   if (!container) return;
   container.innerHTML = "";
 
-  topics.slice(0, 3).forEach(t => {
+  topics.slice(0, 4).forEach(t => {
+    const isActive = t.is_active !== false;
     const card = document.createElement('div');
-    card.className = "p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between";
+    card.className = `p-4 rounded-xl bg-slate-900/80 border ${isActive ? 'border-slate-800' : 'border-amber-900/40 opacity-75'} flex flex-col justify-between`;
     card.innerHTML = `
       <div>
         <div class="flex items-center justify-between mb-1.5">
           <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">${t.badge || 'TEMA'}</span>
-          <span class="text-[11px] font-mono text-slate-400 font-bold">PIN: ${t.default_pin || '---'}</span>
+          <span class="text-[10px] font-mono font-bold ${isActive ? 'text-emerald-400' : 'text-amber-400'}">
+            ${isActive ? '● VISIBLE' : '● OCULTO'}
+          </span>
         </div>
         <h4 class="font-orbitron text-sm font-bold text-white">${t.name}</h4>
         <p class="text-xs text-slate-400 font-mono mt-1 line-clamp-2">${t.description || ''}</p>
       </div>
       <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
         <span class="text-xs font-mono text-cyan-400">${t.question_count} preguntas</span>
-        <a href="/host?topic=${t.id}&pin=${t.default_pin}" target="_blank" class="px-2.5 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 text-xs font-mono font-bold transition-all">
-          Lanzar ➔
-        </a>
+        ${isActive 
+          ? `<a href="/host?topic=${t.id}&pin=${t.default_pin}" target="_blank" class="px-2.5 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 text-xs font-mono font-bold transition-all">
+               Lanzar ➔
+             </a>`
+          : `<span class="text-xs font-mono text-amber-500/70 italic">Oculto</span>`
+        }
       </div>
     `;
     container.appendChild(card);
@@ -169,41 +202,133 @@ function renderTopicsGrid(topics) {
   if (!container) return;
   container.innerHTML = "";
 
+  if (topics.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full text-center py-12 cyber-card rounded-2xl">
+        <i data-lucide="layers" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
+        <h3 class="font-orbitron text-base font-bold text-white mb-1">No hay evaluaciones registradas</h3>
+        <p class="text-xs text-slate-400 font-mono mb-4">Crea una nueva evaluación para comenzar a cargar preguntas.</p>
+        <button onclick="openNewTopicModal()" class="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-orbitron text-xs font-bold">
+          Crear Primera Evaluación
+        </button>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
   topics.forEach(t => {
+    const isActive = t.is_active !== false;
+    const safeName = (t.name || '').replace(/'/g, "\\'");
     const card = document.createElement('div');
-    card.className = "cyber-card rounded-2xl p-5 flex flex-col justify-between space-y-4";
+    card.className = `cyber-card rounded-2xl p-5 flex flex-col justify-between space-y-4 transition-all ${isActive ? 'border-slate-800 hover:border-cyan-500/50' : 'border-amber-900/40 bg-amber-950/10 opacity-80'}`;
     card.innerHTML = `
       <div>
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold">${t.badge || 'CAPACITACIÓN'}</span>
+        <div class="flex items-center justify-between mb-2 flex-wrap gap-1.5">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold">${t.badge || 'CAPACITACIÓN'}</span>
+            ${isActive 
+              ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-700/60 font-bold flex items-center gap-1">
+                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                   VISIBLE
+                 </span>`
+              : `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950/80 text-amber-400 border border-amber-700/60 font-bold flex items-center gap-1">
+                   <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                   OCULTO
+                 </span>`
+            }
+          </div>
           <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700 font-bold">PIN: ${t.default_pin || 'ZR2026'}</span>
         </div>
         <h3 class="font-orbitron text-base font-bold text-white mb-1">${t.name}</h3>
         <p class="text-xs text-slate-400 font-mono">${t.description || 'Sin descripción.'}</p>
       </div>
 
-      <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-between flex-wrap gap-2">
         <span class="text-xs font-mono text-cyan-400 flex items-center gap-1">
           <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
           <span>${t.question_count} Preguntas</span>
         </span>
 
-        <div class="flex items-center gap-2">
-          <button onclick="openQuestionsModal('${t.id}')" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-400 text-xs font-mono text-white flex items-center gap-1.5 transition-all">
-            <i data-lucide="edit" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <div class="flex items-center gap-1.5">
+          <!-- Toggle Visibility (Ocultar / Mostrar) -->
+          <button onclick="toggleTopicVisibility('${t.id}', ${!isActive})" title="${isActive ? 'Ocultar del selector y de la sala del Host' : 'Hacer visible en el selector y sala del Host'}" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border ${isActive ? 'border-slate-700 text-slate-300 hover:border-amber-400 hover:text-amber-300' : 'border-emerald-700/60 text-emerald-400 hover:bg-emerald-950/30'} text-xs font-mono flex items-center gap-1 transition-all">
+            <i data-lucide="${isActive ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5 ${isActive ? 'text-amber-400' : 'text-emerald-400'}"></i>
+            <span>${isActive ? 'Ocultar' : 'Mostrar'}</span>
+          </button>
+
+          <!-- Manage Questions -->
+          <button onclick="openQuestionsModal('${t.id}')" title="Administrar banco de preguntas" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-400 text-xs font-mono text-white flex items-center gap-1 transition-all">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5 text-cyan-400"></i>
             <span>Preguntas</span>
           </button>
 
-          <a href="/host?topic=${t.id}&pin=${t.default_pin}" target="_blank" class="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-orbitron font-bold flex items-center gap-1 transition-all">
-            <i data-lucide="play" class="w-3.5 h-3.5"></i>
-            <span>Lanzar</span>
-          </a>
+          <!-- Launch Host Screen -->
+          ${isActive 
+            ? `<a href="/host?topic=${t.id}&pin=${t.default_pin}" target="_blank" title="Lanzar sala de juego interactiva" class="px-2.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-orbitron font-bold flex items-center gap-1 transition-all">
+                 <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                 <span>Lanzar</span>
+               </a>`
+            : `<button disabled title="Evaluación oculta. Haz clic en 'Mostrar' para habilitarla en vivo." class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-600 text-xs font-orbitron font-bold flex items-center gap-1 cursor-not-allowed">
+                 <i data-lucide="play" class="w-3.5 h-3.5 text-slate-600"></i>
+                 <span>Lanzar</span>
+               </button>`
+          }
+
+          <!-- Delete Topic -->
+          <button onclick="deleteTopic('${t.id}', '${safeName}')" title="Eliminar evaluación permanentemente" class="p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-red-500/80 hover:bg-red-950/40 text-slate-400 hover:text-red-400 transition-all cursor-pointer">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
         </div>
       </div>
     `;
     container.appendChild(card);
   });
   lucide.createIcons();
+}
+
+// --- Topic Visibility Toggle & Deletion ---
+
+async function toggleTopicVisibility(topicId, newStatus) {
+  try {
+    const res = await fetch(`/api/admin/topics/${topicId}/visibility`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ is_active: newStatus })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Error al actualizar visibilidad");
+    }
+
+    await loadTopics();
+    await loadOverviewStats();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+async function deleteTopic(topicId, topicName) {
+  const confirmMsg = `¿Estás seguro de que deseas ELIMINAR permanentemente la evaluación:\n\n"${topicName}"?\n\n⚠️ Esta acción borrará todas sus preguntas y no se puede deshacer.`;
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await fetch(`/api/admin/topics/${topicId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Error al eliminar la evaluación");
+    }
+
+    await loadTopics();
+    await loadOverviewStats();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
 }
 
 // --- Topic Modal CRUD ---
@@ -498,6 +623,10 @@ async function loadUsers() {
 }
 
 function openNewUserModal() {
+  if (!currentUser || currentUser.role !== 'admin') {
+    alert("Permiso denegado: Solo el perfil de Administrador puede crear usuarios y asignar roles.");
+    return;
+  }
   document.getElementById('userForm').reset();
   document.getElementById('userModal').classList.remove('hidden');
 }
