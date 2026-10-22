@@ -22,7 +22,7 @@ SUPABASE_PROJECT_REF = os.getenv("SUPABASE_PROJECT_REF", "dtrqnzbbcolnkcufjbhh")
 # Direct PostgreSQL Pooler Connection
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    ""
+    "postgresql://postgres.dtrqnzbbcolnkcufjbhh:1033693601JK@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
 )
 
 # Server Configuration

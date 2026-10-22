@@ -12,6 +12,6 @@ services:
       - key: SUPABASE_SECRET_KEY
         sync: false
       - key: DATABASE_URL
-        sync: false
+        value: postgresql://postgres.dtrqnzbbcolnkcufjbhh:1033693601JK@aws-0-us-east-1.pooler.supabase.com:6543/postgres
       - key: PYTHON_VERSION
         value: 3.12.0
