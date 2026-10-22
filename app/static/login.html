@@ -103,30 +103,6 @@
           <span>INGRESAR AL PANEL</span>
         </button>
       </form>
-
-      <!-- Credentials Hint Box -->
-      <div class="mt-6 pt-5 border-t border-slate-800 text-xs">
-        <span class="text-[11px] font-mono text-slate-400 block mb-2 font-semibold flex items-center gap-1.5">
-          <i data-lucide="info" class="w-3.5 h-3.5 text-cyan-400"></i>
-          CREDENCIALES OFICIALES PRECONFIGURADAS:
-        </span>
-        <div class="space-y-1.5 font-mono text-[11px]">
-          <div class="p-2 rounded bg-slate-900/90 border border-slate-800 flex justify-between items-center cursor-pointer hover:border-cyan-500/40" onclick="fillCredentials('admin', 'AdminCun2026*')">
-            <div>
-              <span class="text-amber-400 font-bold">👑 Admin:</span>
-              <span class="text-slate-300 ml-1">admin</span>
-            </div>
-            <span class="text-slate-500 text-[10px]">Autollenar ➔</span>
-          </div>
-          <div class="p-2 rounded bg-slate-900/90 border border-slate-800 flex justify-between items-center cursor-pointer hover:border-cyan-500/40" onclick="fillCredentials('facilitador', 'Facilitador2026*')">
-            <div>
-              <span class="text-cyan-400 font-bold">🎓 Facilitador:</span>
-              <span class="text-slate-300 ml-1">facilitador</span>
-            </div>
-            <span class="text-slate-500 text-[10px]">Autollenar ➔</span>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Back Link -->
@@ -140,11 +116,6 @@
 
   <script>
     lucide.createIcons();
-
-    function fillCredentials(user, pwd) {
-      document.getElementById('username').value = user;
-      document.getElementById('password').value = pwd;
-    }
 
     const form = document.getElementById('loginForm');
     const submitBtn = document.getElementById('loginSubmitBtn');
