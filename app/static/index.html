@@ -135,36 +135,139 @@
 
         <!-- Avatar Selection -->
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-            Selecciona tu Holograma / Avatar
-          </label>
-          <div class="grid grid-cols-4 gap-2" id="avatarGrid">
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Selecciona tu Holograma / Avatar
+            </label>
+            <span class="text-[10px] font-mono text-cyan-400">16 Avatares Disponibles</span>
+          </div>
+          <div class="grid grid-cols-4 gap-2 max-h-52 overflow-y-auto pr-1 border border-slate-800/80 rounded-xl p-2 bg-slate-950/40" id="avatarGrid">
+            <!-- 1: Robot Scout -->
             <label class="cursor-pointer">
               <input type="radio" name="avatar" value="cyber_scout" checked class="hidden peer">
-              <div class="p-2.5 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-cyan-400 peer-checked:bg-cyan-950/40 peer-checked:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all">
-                <span class="text-2xl mb-1">🤖</span>
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-cyan-400 peer-checked:bg-cyan-950/40 peer-checked:shadow-[0_0_12px_rgba(0,240,255,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🤖</span>
                 <span class="text-[10px] text-slate-300 font-mono">Scout</span>
               </div>
             </label>
+            <!-- 2: Hunter -->
             <label class="cursor-pointer">
               <input type="radio" name="avatar" value="talent_hunter" class="hidden peer">
-              <div class="p-2.5 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-pink-500 peer-checked:bg-pink-950/40 peer-checked:shadow-[0_0_15px_rgba(255,0,127,0.4)] transition-all">
-                <span class="text-2xl mb-1">⚡</span>
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-pink-500 peer-checked:bg-pink-950/40 peer-checked:shadow-[0_0_12px_rgba(255,0,127,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">⚡</span>
                 <span class="text-[10px] text-slate-300 font-mono">Hunter</span>
               </div>
             </label>
+            <!-- 3: Neural -->
             <label class="cursor-pointer">
               <input type="radio" name="avatar" value="quantum_ai" class="hidden peer">
-              <div class="p-2.5 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-emerald-400 peer-checked:bg-emerald-950/40 peer-checked:shadow-[0_0_15px_rgba(0,255,157,0.4)] transition-all">
-                <span class="text-2xl mb-1">🧠</span>
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-emerald-400 peer-checked:bg-emerald-950/40 peer-checked:shadow-[0_0_12px_rgba(0,255,157,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🧠</span>
                 <span class="text-[10px] text-slate-300 font-mono">Neural</span>
               </div>
             </label>
+            <!-- 4: Sniper -->
             <label class="cursor-pointer">
               <input type="radio" name="avatar" value="matrix_scout" class="hidden peer">
-              <div class="p-2.5 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-amber-400 peer-checked:bg-amber-950/40 peer-checked:shadow-[0_0_15px_rgba(255,184,0,0.4)] transition-all">
-                <span class="text-2xl mb-1">🎯</span>
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-amber-400 peer-checked:bg-amber-950/40 peer-checked:shadow-[0_0_12px_rgba(255,184,0,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🎯</span>
                 <span class="text-[10px] text-slate-300 font-mono">Sniper</span>
+              </div>
+            </label>
+            <!-- 5: Ninja Dev -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="ninja_dev" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-purple-400 peer-checked:bg-purple-950/40 peer-checked:shadow-[0_0_12px_rgba(192,132,252,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🥷</span>
+                <span class="text-[10px] text-slate-300 font-mono">Ninja</span>
+              </div>
+            </label>
+            <!-- 6: Pilot -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="cosmic_pilot" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-blue-400 peer-checked:bg-blue-950/40 peer-checked:shadow-[0_0_12px_rgba(96,165,250,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🚀</span>
+                <span class="text-[10px] text-slate-300 font-mono">Piloto</span>
+              </div>
+            </label>
+            <!-- 7: Hacker -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="fire_hacker" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-orange-500 peer-checked:bg-orange-950/40 peer-checked:shadow-[0_0_12px_rgba(249,115,22,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🔥</span>
+                <span class="text-[10px] text-slate-300 font-mono">Hacker</span>
+              </div>
+            </label>
+            <!-- 8: Titan -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="cyber_lion" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-yellow-400 peer-checked:bg-yellow-950/40 peer-checked:shadow-[0_0_12px_rgba(250,204,21,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🦁</span>
+                <span class="text-[10px] text-slate-300 font-mono">Titán</span>
+              </div>
+            </label>
+            <!-- 9: Alien -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="alien_matrix" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-teal-400 peer-checked:bg-teal-950/40 peer-checked:shadow-[0_0_12px_rgba(45,212,191,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">👽</span>
+                <span class="text-[10px] text-slate-300 font-mono">Alien</span>
+              </div>
+            </label>
+            <!-- 10: Phantom -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="ghost_recon" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-indigo-400 peer-checked:bg-indigo-950/40 peer-checked:shadow-[0_0_12px_rgba(129,140,248,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">👻</span>
+                <span class="text-[10px] text-slate-300 font-mono">Phantom</span>
+              </div>
+            </label>
+            <!-- 11: Alfa -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="cyber_wolf" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-slate-300 peer-checked:bg-slate-800/40 peer-checked:shadow-[0_0_12px_rgba(203,213,225,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🐺</span>
+                <span class="text-[10px] text-slate-300 font-mono">Alfa</span>
+              </div>
+            </label>
+            <!-- 12: Mago -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="pixel_wizard" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-violet-400 peer-checked:bg-violet-950/40 peer-checked:shadow-[0_0_12px_rgba(167,139,250,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🧙‍♂️</span>
+                <span class="text-[10px] text-slate-300 font-mono">Mago</span>
+              </div>
+            </label>
+            <!-- 13: Dragon -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="neon_dragon" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-emerald-500 peer-checked:bg-emerald-950/40 peer-checked:shadow-[0_0_12px_rgba(16,185,129,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🐲</span>
+                <span class="text-[10px] text-slate-300 font-mono">Dragón</span>
+              </div>
+            </label>
+            <!-- 14: Elite -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="diamond_pro" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-cyan-300 peer-checked:bg-cyan-950/40 peer-checked:shadow-[0_0_12px_rgba(103,232,249,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">💎</span>
+                <span class="text-[10px] text-slate-300 font-mono">Elite</span>
+              </div>
+            </label>
+            <!-- 15: Estrella -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="rocket_star" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-amber-300 peer-checked:bg-amber-950/40 peer-checked:shadow-[0_0_12px_rgba(252,211,77,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">⭐</span>
+                <span class="text-[10px] text-slate-300 font-mono">Estrella</span>
+              </div>
+            </label>
+            <!-- 16: Defensor -->
+            <label class="cursor-pointer">
+              <input type="radio" name="avatar" value="shield_guardian" class="hidden peer">
+              <div class="p-2 rounded-lg border border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center text-center peer-checked:border-blue-500 peer-checked:bg-blue-950/40 peer-checked:shadow-[0_0_12px_rgba(59,130,246,0.4)] hover:border-slate-500 transition-all">
+                <span class="text-xl mb-0.5">🛡️</span>
+                <span class="text-[10px] text-slate-300 font-mono">Defensor</span>
               </div>
             </label>
           </div>

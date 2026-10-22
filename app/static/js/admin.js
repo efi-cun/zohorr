@@ -12,7 +12,19 @@ const avatarEmojis = {
   cyber_scout: "🤖",
   talent_hunter: "⚡",
   quantum_ai: "🧠",
-  matrix_scout: "🎯"
+  matrix_scout: "🎯",
+  ninja_dev: "🥷",
+  cosmic_pilot: "🚀",
+  fire_hacker: "🔥",
+  cyber_lion: "🦁",
+  alien_matrix: "👽",
+  ghost_recon: "👻",
+  cyber_wolf: "🐺",
+  pixel_wizard: "🧙‍♂️",
+  neon_dragon: "🐲",
+  diamond_pro: "💎",
+  rocket_star: "⭐",
+  shield_guardian: "🛡️"
 };
 
 // Initialize on page load
