@@ -3,16 +3,62 @@ import socket
 import json
 import csv
 import io
+import secrets
 from pathlib import Path
+from typing import Dict, Any, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
-from app.database import init_db, get_session_export_rows
+from app.database import (
+    init_db, 
+    get_session_export_rows,
+    authenticate_user,
+    get_user_by_id,
+    get_all_users,
+    create_user,
+    update_user_status,
+    delete_user,
+    get_all_topics_from_db,
+    get_topic_from_db,
+    save_topic,
+    delete_topic,
+    get_questions_by_topic,
+    save_question,
+    delete_question,
+    get_sessions_history
+)
 from app.game_manager import game_manager
 from app.config import HOST, PORT
+
+# In-memory active auth tokens: token -> user_dict
+AUTH_SESSIONS: Dict[str, Dict[str, Any]] = {}
+
+def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
+    """Resolves authenticated user from Bearer header or cookie."""
+    token = None
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    elif "x-auth-token" in request.headers:
+        token = request.headers.get("x-auth-token")
+    elif "auth_token" in request.cookies:
+        token = request.cookies.get("auth_token")
+
+    if token and token in AUTH_SESSIONS:
+        return AUTH_SESSIONS[token]
+    return None
+
+def require_auth(request: Request, require_admin: bool = False) -> Dict[str, Any]:
+    """Helper that raises 401/403 if unauthenticated or lacks permissions."""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Sesión no válida o expirada. Por favor inicia sesión.")
+    if require_admin and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Permiso denegado. Se requiere rol de Administrador.")
+    return user
 
 app = FastAPI(title="Zoho Recruit: Cyber-Talent Arena")
 
@@ -68,6 +114,24 @@ async def serve_host():
 async def serve_play():
     player_file = STATIC_DIR / "player.html"
     return HTMLResponse(content=player_file.read_text(encoding="utf-8"))
+
+@app.get("/login", response_class=HTMLResponse)
+async def serve_login():
+    login_file = STATIC_DIR / "login.html"
+    if not login_file.exists():
+        return HTMLResponse("<h2>Login view loading...</h2>")
+    return HTMLResponse(content=login_file.read_text(encoding="utf-8"))
+
+@app.get("/admin", response_class=HTMLResponse)
+async def serve_admin():
+    admin_file = STATIC_DIR / "admin.html"
+    if not admin_file.exists():
+        return HTMLResponse("<h2>Admin Dashboard loading...</h2>")
+    return HTMLResponse(content=admin_file.read_text(encoding="utf-8"))
+
+@app.get("/dashboard")
+async def redirect_dashboard():
+    return RedirectResponse(url="/admin")
 
 # --- API Endpoints ---
 
@@ -167,6 +231,212 @@ async def export_session_results(room_code: str):
     response = Response(content=output.getvalue(), media_type="text/csv")
     response.headers["Content-Disposition"] = f"attachment; filename=Zoho_Recruit_CyberArena_{room_code}.csv"
     return response
+
+# ==============================================================================
+# AUTHENTICATION & DASHBOARD API ENDPOINTS
+# ==============================================================================
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/auth/login")
+async def login_endpoint(req: LoginRequest):
+    """Logs in an administrator or facilitator."""
+    res = authenticate_user(req.username, req.password)
+    if not res:
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos.")
+    if "error" in res:
+        raise HTTPException(status_code=403, detail=res["error"])
+
+    token = secrets.token_hex(24)
+    AUTH_SESSIONS[token] = res
+
+    response = Response(
+        content=json.dumps({"success": True, "token": token, "user": res}),
+        media_type="application/json"
+    )
+    # Set cookie for direct browser navigation to /admin
+    response.set_cookie(key="auth_token", value=token, httponly=False, max_age=86400, samesite="lax")
+    return response
+
+@app.get("/api/auth/me")
+async def get_me_endpoint(request: Request):
+    """Returns profile of currently logged-in user."""
+    user = require_auth(request)
+    return {"authenticated": True, "user": user}
+
+@app.post("/api/auth/logout")
+async def logout_endpoint(request: Request):
+    """Destroys current auth session."""
+    user = get_current_user(request)
+    auth_header = request.headers.get("authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    elif "auth_token" in request.cookies:
+        token = request.cookies.get("auth_token")
+
+    if token and token in AUTH_SESSIONS:
+        del AUTH_SESSIONS[token]
+
+    response = Response(content=json.dumps({"success": True}), media_type="application/json")
+    response.delete_cookie("auth_token")
+    return response
+
+# --- Dashboard & Stats ---
+
+@app.get("/api/admin/stats")
+async def get_admin_stats(request: Request):
+    """Returns overview metrics for dashboard."""
+    require_auth(request)
+    from app.questions_data import get_all_topics
+    all_t = get_all_topics()
+    all_u = get_all_users()
+    sessions = get_sessions_history()
+    
+    total_q = sum(t.get("question_count", 0) for t in all_t)
+    total_participants = sum(s.get("total_participants", 0) for s in sessions)
+
+    return {
+        "active_rooms_count": len([r for r in game_manager.rooms.values() if r.status != "FINISHED"]),
+        "total_topics": len(all_t),
+        "total_questions": total_q,
+        "total_users": len(all_u),
+        "total_sessions": len(sessions),
+        "total_participants": total_participants
+    }
+
+# --- Users Management (Admin Only) ---
+
+class CreateUserPayload(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: str
+    role: str = "facilitator"
+
+class UpdateStatusPayload(BaseModel):
+    is_active: bool
+
+@app.get("/api/admin/users")
+async def list_users_endpoint(request: Request):
+    require_auth(request, require_admin=True)
+    return get_all_users()
+
+@app.post("/api/admin/users")
+async def create_user_endpoint(payload: CreateUserPayload, request: Request):
+    require_auth(request, require_admin=True)
+    try:
+        new_u = create_user(
+            username=payload.username,
+            email=payload.email,
+            password=payload.password,
+            full_name=payload.full_name,
+            role=payload.role
+        )
+        return {"success": True, "user": new_u}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creando usuario: {str(e)}")
+
+@app.put("/api/admin/users/{user_id}/status")
+async def update_user_status_endpoint(user_id: str, payload: UpdateStatusPayload, request: Request):
+    require_auth(request, require_admin=True)
+    update_user_status(user_id, payload.is_active)
+    return {"success": True, "user_id": user_id, "is_active": payload.is_active}
+
+@app.delete("/api/admin/users/{user_id}")
+async def delete_user_endpoint(user_id: str, request: Request):
+    user = require_auth(request, require_admin=True)
+    if user.get("id") == user_id:
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta mientras estás conectado.")
+    try:
+        delete_user(user_id)
+        return {"success": True, "deleted_id": user_id}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# --- Topics / Capacitaciones CRUD ---
+
+class SaveTopicPayload(BaseModel):
+    id: str
+    name: str
+    badge: str
+    description: str = ""
+    default_pin: str = "CUN2026"
+
+@app.get("/api/admin/topics")
+async def list_admin_topics(request: Request):
+    require_auth(request)
+    return get_all_topics_from_db()
+
+@app.get("/api/admin/topics/{topic_id}")
+async def get_topic_detail(topic_id: str, request: Request):
+    require_auth(request)
+    t = get_topic_from_db(topic_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tema no encontrado.")
+    return t
+
+@app.post("/api/admin/topics")
+async def save_topic_endpoint(payload: SaveTopicPayload, request: Request):
+    user = require_auth(request)
+    t = save_topic(
+        topic_id=payload.id,
+        name=payload.name,
+        badge=payload.badge,
+        description=payload.description,
+        default_pin=payload.default_pin,
+        created_by=user.get("username", "admin")
+    )
+    return {"success": True, "topic": t}
+
+@app.delete("/api/admin/topics/{topic_id}")
+async def delete_topic_endpoint(topic_id: str, request: Request):
+    require_auth(request, require_admin=True)
+    delete_topic(topic_id)
+    return {"success": True, "deleted_id": topic_id}
+
+# --- Questions CRUD ---
+
+class SaveQuestionPayload(BaseModel):
+    id: Optional[str] = None
+    topic_id: str
+    order_num: int = 1
+    type: str = "CHOICE"
+    category: str = "GENERAL"
+    title: str
+    question_text: str
+    options: list
+    correct_answer: Any = None
+    correct_order: Optional[list] = None
+    explanation: str = ""
+    time_limit_sec: int = 25
+    points_base: int = 1000
+
+@app.get("/api/admin/topics/{topic_id}/questions")
+async def list_topic_questions(topic_id: str, request: Request):
+    require_auth(request)
+    return get_questions_by_topic(topic_id)
+
+@app.post("/api/admin/questions")
+async def save_question_endpoint(payload: SaveQuestionPayload, request: Request):
+    require_auth(request)
+    saved = save_question(payload.dict())
+    return {"success": True, "question": saved}
+
+@app.delete("/api/admin/questions/{question_id}")
+async def delete_question_endpoint(question_id: str, request: Request):
+    require_auth(request)
+    delete_question(question_id)
+    return {"success": True, "deleted_id": question_id}
+
+# --- Sessions & History ---
+
+@app.get("/api/admin/sessions")
+async def list_sessions_endpoint(request: Request):
+    require_auth(request)
+    return get_sessions_history()
 
 # --- Real-Time WebSocket Hub ---
 

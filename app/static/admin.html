@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Gestión | Cyber-Talent Arena CUN</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background-color: #030712;
+      background-image: 
+        radial-gradient(circle at 10% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 100%, rgba(236, 72, 153, 0.06) 0%, transparent 40%);
+    }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .cyber-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+    .cyber-card:hover {
+      border-color: rgba(6, 182, 212, 0.45);
+    }
+  </style>
+</head>
+<body class="min-h-full flex flex-col text-slate-100">
+
+  <!-- Top Navigation Header -->
+  <header class="w-full border-b border-cyan-500/20 bg-slate-950/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <a href="/" class="flex items-center gap-2 group">
+          <div class="w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-500/50 flex items-center justify-center text-cyan-400 group-hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all">
+            <i data-lucide="shield" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="font-orbitron font-bold text-sm tracking-wider text-white">
+              PANEL <span class="text-cyan-400">GESTIÓN</span>
+            </div>
+            <div class="text-[10px] font-mono text-slate-400">ARENA CUN 2026</div>
+          </div>
+        </a>
+
+        <!-- Desktop Navigation Tabs -->
+        <nav class="hidden md:flex items-center gap-1 ml-6 border-l border-slate-800 pl-6">
+          <button onclick="switchTab('overview')" id="tabBtn-overview" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-orbitron tracking-wider flex items-center gap-1.5 transition-all text-cyan-400 bg-cyan-950/60 border border-cyan-500/40">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>RESUMEN</span>
+          </button>
+          <button onclick="switchTab('topics')" id="tabBtn-topics" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-orbitron tracking-wider flex items-center gap-1.5 transition-all text-slate-400 hover:text-white">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+            <span>EVALUACIONES</span>
+          </button>
+          <button onclick="switchTab('users')" id="tabBtn-users" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-orbitron tracking-wider flex items-center gap-1.5 transition-all text-slate-400 hover:text-white">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>USUARIOS & ROLES</span>
+          </button>
+          <button onclick="switchTab('sessions')" id="tabBtn-sessions" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-orbitron tracking-wider flex items-center gap-1.5 transition-all text-slate-400 hover:text-white">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span>HISTORIAL REPORTES</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- User Profile & Actions -->
+      <div class="flex items-center gap-3">
+        <a href="/host" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-orbitron transition-all">
+          <i data-lucide="projector" class="w-4 h-4 text-cyan-400"></i>
+          <span>PANTALLA HOST</span>
+        </a>
+
+        <!-- User Chip -->
+        <div class="flex items-center gap-2 pl-3 border-l border-slate-800">
+          <div class="text-right hidden sm:block">
+            <div id="userFullNameDisplay" class="text-xs font-bold text-white leading-tight">Cargando...</div>
+            <span id="userRoleBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">ADMIN</span>
+          </div>
+          <button onclick="logout()" class="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-red-500/50 hover:text-red-400 text-slate-400 transition-all" title="Cerrar Sesión">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Nav Bar -->
+    <div class="md:hidden flex items-center gap-1 pt-3 mt-2 border-t border-slate-900 overflow-x-auto">
+      <button onclick="switchTab('overview')" class="tab-btn px-2.5 py-1 text-[11px] font-orbitron text-cyan-400 whitespace-nowrap">Resumen</button>
+      <button onclick="switchTab('topics')" class="tab-btn px-2.5 py-1 text-[11px] font-orbitron text-slate-400 whitespace-nowrap">Evaluaciones</button>
+      <button onclick="switchTab('users')" class="tab-btn px-2.5 py-1 text-[11px] font-orbitron text-slate-400 whitespace-nowrap">Usuarios</button>
+      <button onclick="switchTab('sessions')" class="tab-btn px-2.5 py-1 text-[11px] font-orbitron text-slate-400 whitespace-nowrap">Reportes</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8">
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: OVERVIEW -->
+    <!-- ===================================================================== -->
+    <section id="tab-overview" class="space-y-6">
+      
+      <!-- Welcome Hero Banner -->
+      <div class="cyber-card rounded-2xl p-6 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <span class="inline-flex items-center gap-1.5 text-xs font-mono text-cyan-400 mb-1">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            SISTEMA CENTRAL OPERATIVO ● SUPABASE POSTGRESQL
+          </span>
+          <h2 class="font-orbitron text-xl md:text-2xl font-bold text-white">
+            BIENVENIDO, <span id="heroUserName" class="text-cyan-400">ADMINISTRADOR</span>
+          </h2>
+          <p class="text-xs text-slate-400 font-mono mt-1">
+            Gestiona usuarios, crea y edita bancos de preguntas temáticas y descarga reportes de asistencia en Excel.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openNewTopicModal()" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-orbitron text-xs font-bold shadow-[0_0_15px_rgba(0,240,255,0.3)] flex items-center gap-2 transition-all cursor-pointer">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>NUEVA EVALUACIÓN</span>
+          </button>
+          <button onclick="openNewUserModal()" id="quickAddUserBtn" class="px-4 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-400 text-white font-orbitron text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer">
+            <i data-lucide="user-plus" class="w-4 h-4 text-cyan-400"></i>
+            <span>NUEVO USUARIO</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Metric Cards Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div class="cyber-card rounded-xl p-4">
+          <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-2">
+            <span>SALAS EN VIVO</span>
+            <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+          </div>
+          <div id="statActiveRooms" class="font-orbitron text-2xl font-bold text-white">0</div>
+        </div>
+
+        <div class="cyber-card rounded-xl p-4">
+          <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-2">
+            <span>EVALUACIONES</span>
+            <i data-lucide="layers" class="w-4 h-4 text-pink-400"></i>
+          </div>
+          <div id="statTotalTopics" class="font-orbitron text-2xl font-bold text-white">3</div>
+        </div>
+
+        <div class="cyber-card rounded-xl p-4">
+          <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-2">
+            <span>PREGUNTAS</span>
+            <i data-lucide="help-circle" class="w-4 h-4 text-amber-400"></i>
+          </div>
+          <div id="statTotalQuestions" class="font-orbitron text-2xl font-bold text-white">30</div>
+        </div>
+
+        <div class="cyber-card rounded-xl p-4">
+          <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-2">
+            <span>USUARIOS/FACIL.</span>
+            <i data-lucide="users" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+          <div id="statTotalUsers" class="font-orbitron text-2xl font-bold text-white">2</div>
+        </div>
+
+        <div class="cyber-card rounded-xl p-4">
+          <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-2">
+            <span>SESIONES TOTAL</span>
+            <i data-lucide="history" class="w-4 h-4 text-purple-400"></i>
+          </div>
+          <div id="statTotalSessions" class="font-orbitron text-2xl font-bold text-white">0</div>
+        </div>
+
+        <div class="cyber-card rounded-xl p-4">
+          <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-2">
+            <span>PARTICIPANTES</span>
+            <i data-lucide="award" class="w-4 h-4 text-cyan-400"></i>
+          </div>
+          <div id="statTotalParticipants" class="font-orbitron text-2xl font-bold text-white">0</div>
+        </div>
+      </div>
+
+      <!-- Quick Topics Preview in Overview -->
+      <div class="cyber-card rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-5 h-5 text-cyan-400"></i>
+            <h3 class="font-orbitron text-sm font-bold text-white tracking-wider">CAPACITACIONES DESTACADAS</h3>
+          </div>
+          <button onclick="switchTab('topics')" class="text-xs font-mono text-cyan-400 hover:underline">Ver todas ➔</button>
+        </div>
+        <div id="overviewTopicsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 2: TOPICS / EVALUATIONS -->
+    <!-- ===================================================================== -->
+    <section id="tab-topics" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-orbitron text-lg font-bold text-white tracking-wider">BANCO DE CAPACITACIONES & EVALUACIONES</h2>
+          <p class="text-xs text-slate-400 font-mono">Crea temas nuevos, ajusta sus preguntas o lanza una sala en directo.</p>
+        </div>
+        <button onclick="openNewTopicModal()" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-orbitron text-xs font-bold shadow-[0_0_15px_rgba(0,240,255,0.3)] flex items-center gap-2 transition-all cursor-pointer">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>CREAR EVALUACIÓN</span>
+        </button>
+      </div>
+
+      <!-- Topics Grid -->
+      <div id="topicsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 3: USERS & ROLES (Admin Only) -->
+    <!-- ===================================================================== -->
+    <section id="tab-users" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-orbitron text-lg font-bold text-white tracking-wider">USUARIOS & ROLES</h2>
+          <p class="text-xs text-slate-400 font-mono">Administra los permisos de facilitadores e instructores autorizados.</p>
+        </div>
+        <button onclick="openNewUserModal()" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-orbitron text-xs font-bold shadow-[0_0_15px_rgba(0,240,255,0.3)] flex items-center gap-2 transition-all cursor-pointer">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>CREAR USUARIO</span>
+        </button>
+      </div>
+
+      <div class="cyber-card rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/90 border-b border-slate-800 text-slate-400 font-orbitron text-[11px]">
+              <tr>
+                <th class="p-3.5">NOMBRE COMPLETO</th>
+                <th class="p-3.5">USUARIO</th>
+                <th class="p-3.5">CORREO</th>
+                <th class="p-3.5">ROL</th>
+                <th class="p-3.5">ESTADO</th>
+                <th class="p-3.5 text-right">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody" class="divide-y divide-slate-800/60 font-mono">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 4: SESSIONS & REPORTS -->
+    <!-- ===================================================================== -->
+    <section id="tab-sessions" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-orbitron text-lg font-bold text-white tracking-wider">HISTORIAL DE SESIONES & REPORTES EXCEL</h2>
+          <p class="text-xs text-slate-400 font-mono">Descarga la asistencia y calificaciones consolidadas en formato CSV / Excel.</p>
+        </div>
+      </div>
+
+      <div class="cyber-card rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/90 border-b border-slate-800 text-slate-400 font-orbitron text-[11px]">
+              <tr>
+                <th class="p-3.5">PIN DE SALA</th>
+                <th class="p-3.5">CAPACITACIÓN / TÍTULO</th>
+                <th class="p-3.5">ESTADO</th>
+                <th class="p-3.5">FECHA</th>
+                <th class="p-3.5">PARTICIPANTES</th>
+                <th class="p-3.5">PROM. PUNTAJE</th>
+                <th class="p-3.5 text-right">REPORTE</th>
+              </tr>
+            </thead>
+            <tbody id="sessionsTableBody" class="divide-y divide-slate-800/60 font-mono">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: NUEVA / EDITAR EVALUACIÓN -->
+  <!-- ===================================================================== -->
+  <div id="topicModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="cyber-card rounded-2xl max-w-lg w-full p-6 border border-cyan-500/40 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="layers" class="w-5 h-5 text-cyan-400"></i>
+          <h3 class="font-orbitron font-bold text-white text-sm" id="topicModalTitle">NUEVA EVALUACIÓN / TEMA</h3>
+        </div>
+        <button onclick="closeModal('topicModal')" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <form id="topicForm" class="space-y-3 font-mono text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">ID Único (sin espacios):</label>
+          <input type="text" id="topicIdInput" required placeholder="ej. atencion_cliente" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Nombre Completo de la Capacitación:</label>
+          <input type="text" id="topicNameInput" required placeholder="ej. Excelencia en Servicio al Estudiante" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Insignia / Badge:</label>
+            <input type="text" id="topicBadgeInput" required placeholder="ej. SERVICIO CUN" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">PIN por Defecto:</label>
+            <input type="text" id="topicPinInput" required placeholder="ej. SERV2026" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none uppercase">
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Descripción Breve:</label>
+          <textarea id="topicDescInput" rows="2" placeholder="Objetivo y temas abordados en esta capacitación..." class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('topicModal')" class="px-3 py-1.5 rounded bg-slate-900 text-slate-400 hover:text-white">Cancelar</button>
+          <button type="submit" class="px-4 py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-orbitron">GUARDAR TEMA</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: GESTIÓN DE PREGUNTAS DEL TEMA -->
+  <!-- ===================================================================== -->
+  <div id="questionsModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="cyber-card rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-cyan-500/40">
+      
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-[11px] font-mono text-cyan-400" id="qModalTopicBadge">TEMA</div>
+          <h3 class="font-orbitron font-bold text-white text-base" id="qModalTopicTitle">Preguntas de la Capacitación</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openQuestionForm()" class="px-3 py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-orbitron text-xs font-bold flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>AÑADIR PREGUNTA</span>
+          </button>
+          <button onclick="closeModal('questionsModal')" class="text-slate-400 hover:text-white p-1">✕</button>
+        </div>
+      </div>
+
+      <!-- Questions List / Edit Form Container -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-4">
+        
+        <!-- Inline Add/Edit Question Form (Hidden by default) -->
+        <div id="questionFormContainer" class="hidden p-4 rounded-xl bg-slate-900/90 border border-cyan-500/50 space-y-3 font-mono text-xs">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <span class="font-orbitron text-cyan-300 font-bold text-xs" id="qFormTitle">AÑADIR PREGUNTA</span>
+            <button onclick="closeQuestionForm()" class="text-slate-400 hover:text-white">✕</button>
+          </div>
+
+          <form id="questionForm" class="space-y-3">
+            <input type="hidden" id="qId">
+            <input type="hidden" id="qTopicId">
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-slate-400 mb-1">Orden (#):</label>
+                <input type="number" id="qOrderNum" value="1" min="1" max="50" required class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Mecánica / Tipo:</label>
+                <select id="qType" onchange="toggleQuestionOptionsUI()" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-cyan-300">
+                  <option value="CHOICE">⚡ Opción Múltiple (CHOICE)</option>
+                  <option value="ORDER_SEQUENCE">🧩 Ordenar Secuencia (ORDER_SEQUENCE)</option>
+                  <option value="SCENARIO">🎭 Caso Práctico (SCENARIO)</option>
+                  <option value="SPEED_TRIAL">⚡ Ronda Relámpago (SPEED_TRIAL)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Categoría:</label>
+                <input type="text" id="qCategory" placeholder="ej. PROTOCOLO" required class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-slate-400 mb-1">Título de la Pregunta:</label>
+              <input type="text" id="qTitle" placeholder="ej. ⚡ DESAFÍO: Procedimiento de Atención" required class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+            </div>
+
+            <div>
+              <label class="block text-slate-400 mb-1">Enunciado / Pregunta:</label>
+              <textarea id="qText" rows="2" placeholder="¿Cuál es el procedimiento adecuado para...?" required class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white"></textarea>
+            </div>
+
+            <!-- Options Grid -->
+            <div class="space-y-2">
+              <span class="block text-slate-300 font-bold">Opciones de Respuesta:</span>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[11px] text-cyan-400">Opción A:</label>
+                  <input type="text" id="optA" required placeholder="Texto de la opción A" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white">
+                </div>
+                <div>
+                  <label class="text-[11px] text-pink-400">Opción B:</label>
+                  <input type="text" id="optB" required placeholder="Texto de la opción B" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white">
+                </div>
+                <div id="optC_container">
+                  <label class="text-[11px] text-amber-400">Opción C:</label>
+                  <input type="text" id="optC" placeholder="Texto de la opción C" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white">
+                </div>
+                <div id="optD_container">
+                  <label class="text-[11px] text-emerald-400">Opción D:</label>
+                  <input type="text" id="optD" placeholder="Texto de la opción D" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white">
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div>
+                <label class="block text-slate-400 mb-1">Respuesta Correcta:</label>
+                <div id="correctChoiceUI">
+                  <select id="qCorrectChoice" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-emerald-400 font-bold">
+                    <option value="opt_A">Opción A</option>
+                    <option value="opt_B">Opción B</option>
+                    <option value="opt_C">Opción C</option>
+                    <option value="opt_D">Opción D</option>
+                  </select>
+                </div>
+                <div id="correctOrderUI" class="hidden text-[10px] text-cyan-400">
+                  Orden: A ➔ B ➔ C ➔ D (predeterminado)
+                </div>
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Tiempo (segundos):</label>
+                <input type="number" id="qTimeLimit" value="25" min="10" max="120" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Puntos Base:</label>
+                <input type="number" id="qPoints" value="1000" min="500" max="3000" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-slate-400 mb-1">Explicación que saldrá tras responder:</label>
+              <input type="text" id="qExplanation" placeholder="Fundamento o justificación de la respuesta correcta..." class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+              <button type="button" onclick="closeQuestionForm()" class="px-3 py-1.5 rounded bg-slate-800 text-slate-400">Cancelar</button>
+              <button type="submit" class="px-4 py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-orbitron">GUARDAR PREGUNTA</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Questions List Table / Cards -->
+        <div id="questionsList" class="space-y-3">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: NUEVO USUARIO -->
+  <!-- ===================================================================== -->
+  <div id="userModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="cyber-card rounded-2xl max-w-md w-full p-6 border border-cyan-500/40 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-5 h-5 text-cyan-400"></i>
+          <h3 class="font-orbitron font-bold text-white text-sm">CREAR NUEVO USUARIO</h3>
+        </div>
+        <button onclick="closeModal('userModal')" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <form id="userForm" class="space-y-3 font-mono text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Nombre Completo:</label>
+          <input type="text" id="uFullName" required placeholder="ej. María López" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Correo Institucional:</label>
+          <input type="email" id="uEmail" required placeholder="maria@cun.edu.co" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Nombre de Usuario (Login):</label>
+          <input type="text" id="uUsername" required placeholder="mlopez" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Contraseña:</label>
+          <input type="password" id="uPassword" required placeholder="••••••••••••" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-400 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Rol de Acceso:</label>
+          <select id="uRole" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-300 font-orbitron focus:border-cyan-400 focus:outline-none">
+            <option value="facilitator">🎓 Facilitador (Crear evaluaciones, lanzar salas y reportes)</option>
+            <option value="admin">👑 Administrador (Control total + gestión de usuarios)</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('userModal')" class="px-3 py-1.5 rounded bg-slate-900 text-slate-400 hover:text-white">Cancelar</button>
+          <button type="submit" class="px-4 py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-orbitron">CREAR USUARIO</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>

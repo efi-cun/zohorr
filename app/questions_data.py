@@ -577,12 +577,27 @@ TRAINING_TOPICS = {
 }
 
 def get_topic(topic_id: str = "zoho_recruit"):
-    """Returns topic data or defaults to zoho_recruit."""
+    """Returns topic data from database if available, otherwise falls back to memory."""
     topic_id = (topic_id or "zoho_recruit").lower().strip()
+    try:
+        from app.database import get_topic_from_db
+        db_topic = get_topic_from_db(topic_id)
+        if db_topic and db_topic.get("questions"):
+            return db_topic
+    except Exception:
+        pass
     return TRAINING_TOPICS.get(topic_id, TRAINING_TOPICS["zoho_recruit"])
 
 def get_all_topics():
-    """Returns summaries of all available topics."""
+    """Returns summaries of all available topics from DB or in-memory catalog."""
+    try:
+        from app.database import get_all_topics_from_db
+        db_topics = get_all_topics_from_db()
+        if db_topics and len(db_topics) > 0:
+            return db_topics
+    except Exception:
+        pass
+
     topics_list = []
     for tid, tdata in TRAINING_TOPICS.items():
         topics_list.append({
