@@ -133,6 +133,23 @@ async def network_ip_endpoint(request: Request):
         "is_public_tunnel": False
     }
 
+class TopicChangeRequest(BaseModel):
+    topic_id: str
+
+@app.get("/api/topics")
+async def get_topics_endpoint():
+    """Returns available training topics and metadata."""
+    from app.questions_data import get_all_topics
+    return get_all_topics()
+
+@app.post("/api/room/{room_code}/topic")
+async def change_room_topic_endpoint(room_code: str, req: TopicChangeRequest):
+    """Changes the active topic for a game room."""
+    success = await game_manager.change_topic(room_code.upper().strip(), req.topic_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="No se pudo cambiar el tema (la partida puede haber iniciado ya).")
+    return {"success": True, "room_code": room_code, "topic_id": req.topic_id}
+
 @app.get("/api/session/{room_code}/export")
 async def export_session_results(room_code: str):
     """Exports session participants and scores to CSV."""
@@ -177,6 +194,8 @@ async def websocket_endpoint(
             if client_type == "host":
                 if action == "START_GAME":
                     await game_manager.start_game(room_code)
+                elif action == "CHANGE_TOPIC":
+                    await game_manager.change_topic(room_code, msg.get("topic_id"))
                 elif action == "NEXT_QUESTION":
                     await game_manager.next_question(room_code)
                 elif action == "REVEAL_RESULTS":

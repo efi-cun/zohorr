@@ -19,24 +19,35 @@
         <i data-lucide="cpu" class="w-6 h-6"></i>
       </div>
       <div>
-        <h1 class="font-orbitron text-lg md:text-xl font-bold tracking-wider text-white">
+        <h1 id="hostHeaderTitle" class="font-orbitron text-lg md:text-xl font-bold tracking-wider text-white">
           ZOHO RECRUIT <span class="text-cyan-400">CYBER-ARENA</span>
         </h1>
-        <p class="text-xs text-slate-400 font-mono tracking-widest">
-          SISTEMA DE EVALUACIÓN DE TALENTO ● CUN 2026
+        <p id="hostHeaderSubtitle" class="text-xs text-slate-400 font-mono tracking-widest">
+          SISTEMA DE EVALUACIÓN MULTITEMÁTICO ● CUN 2026
         </p>
       </div>
     </div>
 
     <!-- Controls -->
     <div class="flex items-center gap-3">
+      <!-- Selector de Capacitación / Tema -->
+      <div class="px-3 py-1.5 rounded-lg bg-slate-900/90 border border-cyan-500/40 flex items-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.15)]">
+        <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+        <label for="topicSelect" class="text-xs font-mono text-slate-400 hidden sm:inline">CAPACITACIÓN:</label>
+        <select id="topicSelect" class="bg-slate-950 text-xs font-orbitron font-semibold text-cyan-300 border border-cyan-500/30 rounded px-2 py-1 focus:outline-none cursor-pointer">
+          <option value="zoho_recruit">🎯 Zoho Recruit (Talento)</option>
+          <option value="sst_cun">🛡️ Seguridad en el Trabajo (SST)</option>
+          <option value="onboarding_cun">🏛️ Inducción & Cultura CUN</option>
+        </select>
+      </div>
+
       <button 
         id="audioToggleBtn" 
         class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/80 text-xs font-mono text-cyan-400 hover:border-cyan-400 flex items-center gap-1.5 transition-all cursor-pointer"
         title="Alternar Sonidos"
       >
         <i data-lucide="volume-2" class="w-4 h-4" id="audioIcon"></i>
-        <span id="audioText">SONIDO: ON</span>
+        <span id="audioText" class="hidden md:inline">SONIDO: ON</span>
       </button>
 
       <div class="px-4 py-1.5 rounded-lg bg-cyan-950/80 border border-cyan-500/50 flex items-center gap-2">
@@ -68,6 +79,10 @@
             <span class="text-xs text-slate-400 font-mono">CÓDIGO PIN:</span>
             <div id="lobbyPinDisplay" class="font-orbitron text-4xl font-extrabold text-white glow-cyan tracking-widest my-1">
               ZR2026
+            </div>
+            <div id="topicBadgeDisplay" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-[11px] font-mono text-cyan-300">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+              <span id="topicBadgeText">ZOHO RECRUIT</span>
             </div>
           </div>
         </div>

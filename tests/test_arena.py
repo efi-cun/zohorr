@@ -83,5 +83,31 @@ class TestZohoRecruitCyberArena(unittest.TestCase):
         self.assertGreater(p_correct["score"], 500)
         self.assertEqual(p_correct["streak"], 1)
 
+    def test_multi_topic_switching(self):
+        """Verifies multi-topic catalog and room topic switching."""
+        from app.questions_data import TRAINING_TOPICS, get_all_topics
+        topics = get_all_topics()
+        self.assertGreaterEqual(len(topics), 3)
+
+        gm = GameManager()
+        room = gm.get_or_create_room("ROOM_TOPIC_TEST")
+        self.assertEqual(room.topic_id, "zoho_recruit")
+
+        # Change topic to SST
+        success = asyncio.run(gm.change_topic("ROOM_TOPIC_TEST", "sst_cun"))
+        self.assertTrue(success)
+        self.assertEqual(room.topic_id, "sst_cun")
+        self.assertIn("Seguridad", room.title)
+        self.assertEqual(len(room.questions), 10)
+        self.assertTrue(room.questions[0]["id"].startswith("sst-"))
+
+        # Change topic to Onboarding
+        success = asyncio.run(gm.change_topic("ROOM_TOPIC_TEST", "onboarding_cun"))
+        self.assertTrue(success)
+        self.assertEqual(room.topic_id, "onboarding_cun")
+        self.assertIn("Cultura", room.title)
+        self.assertEqual(len(room.questions), 10)
+        self.assertTrue(room.questions[0]["id"].startswith("onb-"))
+
 if __name__ == "__main__":
     unittest.main()

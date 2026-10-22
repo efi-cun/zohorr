@@ -7,25 +7,50 @@ from app.database import (
     create_or_get_session, 
     register_participant, 
     record_answer, 
-    finish_session_in_db
+    finish_session_in_db,
+    update_session_title
 )
-from app.questions_data import ZOHO_RECRUIT_QUESTIONS
+from app.questions_data import (
+    ZOHO_RECRUIT_QUESTIONS,
+    TRAINING_TOPICS,
+    get_topic,
+    get_all_topics
+)
 
 logger = logging.getLogger("recruit_arena.game")
 
 class Room:
-    def __init__(self, room_code: str, title: str = "Zoho Recruit: Cyber-Talent Arena"):
-        self.room_code = room_code
-        self.title = title
+    def __init__(self, room_code: str, title: str = None, topic_id: str = "zoho_recruit"):
+        self.room_code = room_code.upper().strip()
+        topic = get_topic(topic_id)
+        self.topic_id = topic["id"]
+        self.title = title or topic["name"]
+        self.badge = topic.get("badge", "CAPACITACIÓN")
         self.status = "LOBBY"  # LOBBY, INTRO, QUESTION, REVEAL, LEADERBOARD, PODIUM
         self.host_ws = None
         self.players: Dict[str, Dict[str, Any]] = {}
-        self.questions = ZOHO_RECRUIT_QUESTIONS
+        self.questions = topic["questions"]
         self.current_q_index = -1
         self.q_start_time = 0.0
         self.timer_task: Optional[asyncio.Task] = None
         self.lock = asyncio.Lock()
         self.session_db_record = None
+
+    def set_topic(self, topic_id: str) -> bool:
+        """Changes the topic and question bank if in LOBBY state."""
+        if self.status != "LOBBY":
+            return False
+        topic = get_topic(topic_id)
+        self.topic_id = topic["id"]
+        self.title = topic["name"]
+        self.badge = topic.get("badge", "CAPACITACIÓN")
+        self.questions = topic["questions"]
+        self.current_q_index = -1
+        try:
+            update_session_title(self.room_code, self.title)
+        except Exception as e:
+            logger.error(f"Failed to update session title in DB: {e}")
+        return True
 
     @property
     def current_question(self) -> Optional[Dict[str, Any]]:
@@ -44,10 +69,15 @@ class GameManager:
     def __init__(self):
         self.rooms: Dict[str, Room] = {}
 
-    def get_or_create_room(self, room_code: str) -> Room:
+    def get_or_create_room(self, room_code: str, topic_id: str = "zoho_recruit") -> Room:
         room_code = room_code.upper().strip()
         if room_code not in self.rooms:
-            room = Room(room_code)
+            # Auto-detect topic by PIN if matching any topic's default_pin
+            for tid, tdata in TRAINING_TOPICS.items():
+                if tdata.get("default_pin", "").upper() == room_code:
+                    topic_id = tid
+                    break
+            room = Room(room_code, topic_id=topic_id)
             # Create session in Supabase
             try:
                 room.session_db_record = create_or_get_session(room_code, room.title)
@@ -55,6 +85,32 @@ class GameManager:
                 logger.error(f"Failed to record session in DB: {e}")
             self.rooms[room_code] = room
         return self.rooms[room_code]
+
+    async def change_topic(self, room_code: str, topic_id: str) -> bool:
+        room = self.get_room(room_code)
+        if not room:
+            return False
+        success = room.set_topic(topic_id)
+        if success:
+            payload = json.dumps({
+                "type": "TOPIC_CHANGED",
+                "topic_id": room.topic_id,
+                "title": room.title,
+                "badge": room.badge,
+                "question_count": len(room.questions)
+            })
+            if room.host_ws:
+                try:
+                    await room.host_ws.send_text(payload)
+                except Exception:
+                    pass
+            for p in room.players.values():
+                if p.get("ws") and p.get("connected"):
+                    try:
+                        await p["ws"].send_text(payload)
+                    except Exception:
+                        pass
+        return success
 
     def get_room(self, room_code: str) -> Optional[Room]:
         return self.rooms.get(room_code.upper().strip())
@@ -103,6 +159,9 @@ class GameManager:
                 "type": "ROOM_STATE",
                 "status": room.status,
                 "room_code": room.room_code,
+                "topic_id": room.topic_id,
+                "title": room.title,
+                "badge": room.badge,
                 "players": [self._clean_player(p) for p in room.players.values()],
                 "current_q_index": room.current_q_index,
                 "total_questions": len(room.questions)
@@ -116,6 +175,8 @@ class GameManager:
                     "type": "JOIN_SUCCESS",
                     "player": self._clean_player(player),
                     "room_status": room.status,
+                    "title": room.title,
+                    "badge": room.badge,
                     "current_q_index": room.current_q_index
                 }))
                 if room.status == "QUESTION":

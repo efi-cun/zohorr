@@ -1,7 +1,10 @@
 // Host Arena Controller
 
 let socket = null;
-let currentRoomCode = "ZR2026";
+const urlParams = new URLSearchParams(window.location.search);
+let currentRoomCode = (urlParams.get('pin') || "ZR2026").toUpperCase().trim();
+let currentTopicId = urlParams.get('topic') || "zoho_recruit";
+let topicsList = [];
 let activeQuestion = null;
 const avatarEmojis = {
   cyber_scout: "🤖",
@@ -21,6 +24,7 @@ const optionStyles = [
 window.addEventListener('DOMContentLoaded', async () => {
   lucide.createIcons();
   setupAudioButton();
+  await setupTopicSelector();
   await setupNetworkAndQR();
   connectWebSocket();
   bindHostButtons();
@@ -42,6 +46,64 @@ function setupAudioButton() {
       cyberAudio.playTone(600, 'sine', 0.1);
     }
   });
+}
+
+async function setupTopicSelector() {
+  const select = document.getElementById('topicSelect');
+  if (!select) return;
+
+  try {
+    const res = await fetch('/api/topics');
+    if (res.ok) {
+      topicsList = await res.json();
+      select.innerHTML = "";
+      topicsList.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.innerText = t.name;
+        opt.className = "bg-slate-950 text-white";
+        if (t.id === currentTopicId) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+  } catch (err) {
+    console.error("Failed to fetch topics:", err);
+  }
+
+  select.addEventListener('change', () => {
+    const newTopicId = select.value;
+    currentTopicId = newTopicId;
+    
+    // Auto-update room code if user hasn't explicitly customized it
+    const selectedTopicObj = topicsList.find(t => t.id === newTopicId);
+    if (selectedTopicObj && selectedTopicObj.default_pin && !urlParams.get('pin')) {
+      currentRoomCode = selectedTopicObj.default_pin;
+      setupNetworkAndQR();
+    }
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        action: "CHANGE_TOPIC",
+        topic_id: newTopicId
+      }));
+    }
+  });
+}
+
+function updateHostTopicDisplay(title, badge) {
+  const titleEl = document.getElementById('hostHeaderTitle');
+  if (titleEl && title) {
+    if (title.includes(":")) {
+      const parts = title.split(":");
+      titleEl.innerHTML = `${parts[0]}: <span class="text-cyan-400">${parts.slice(1).join(":")}</span>`;
+    } else {
+      titleEl.innerText = title;
+    }
+  }
+  const badgeEl = document.getElementById('topicBadgeText');
+  if (badgeEl && badge) {
+    badgeEl.innerText = badge;
+  }
 }
 
 async function setupNetworkAndQR() {
@@ -107,10 +169,26 @@ function connectWebSocket() {
 function handleServerMessage(data) {
   switch (data.type) {
     case 'ROOM_STATE':
+      if (data.topic_id) {
+        currentTopicId = data.topic_id;
+        const sel = document.getElementById('topicSelect');
+        if (sel) sel.value = data.topic_id;
+      }
+      if (data.title) {
+        updateHostTopicDisplay(data.title, data.badge);
+      }
       if (data.players) {
         data.players.forEach(p => renderPlayerTag(p));
         updatePlayerCount(data.players.length);
       }
+      break;
+
+    case 'TOPIC_CHANGED':
+      currentTopicId = data.topic_id;
+      const sel = document.getElementById('topicSelect');
+      if (sel) sel.value = data.topic_id;
+      updateHostTopicDisplay(data.title, data.badge);
+      cyberAudio.playTone(700, 'sine', 0.15);
       break;
 
     case 'PLAYER_JOINED':

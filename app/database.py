@@ -82,9 +82,10 @@ def init_db():
             for ddl in ddl_statements:
                 cur.execute(ddl)
             
-            # Synchronize questions with latest ZOHO_RECRUIT_QUESTIONS definition
-            from app.questions_data import ZOHO_RECRUIT_QUESTIONS
-            for q in ZOHO_RECRUIT_QUESTIONS:
+            # Synchronize questions with all topics defined in TRAINING_TOPICS
+            from app.questions_data import get_all_questions
+            all_questions = get_all_questions()
+            for q in all_questions:
                 cur.execute("""
                     INSERT INTO recruit_questions 
                     (id, order_num, type, category, title, question_text, options, correct_answer, explanation, time_limit_sec, points_base)
@@ -113,7 +114,7 @@ def init_db():
                     q.get("time_limit_sec", 25),
                     q.get("points_base", 1000)
                 ))
-            logger.info(f"Synchronized {len(ZOHO_RECRUIT_QUESTIONS)} Zoho Recruit questions into database.")
+            logger.info(f"Synchronized {len(all_questions)} multi-topic questions into database.")
         conn.commit()
         logger.info("Supabase database tables successfully initialized.")
     except Exception as e:
@@ -137,6 +138,20 @@ def create_or_get_session(room_code: str, title: str = "Zoho Recruit: Cyber-Tale
             session = cur.fetchone()
             conn.commit()
             return session
+    finally:
+        conn.close()
+
+def update_session_title(room_code: str, title: str):
+    """Updates the title/topic of a session in Supabase."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE recruit_game_sessions
+                SET title = %s
+                WHERE room_code = %s;
+            """, (title, room_code))
+            conn.commit()
     finally:
         conn.close()
 
