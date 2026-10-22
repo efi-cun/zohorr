@@ -1,10 +1,12 @@
 services:
   - type: web
-    name: zoho-recruit-cyber-arena
+    name: zoho-recruit-arena
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PUBLIC_WEB_URL
+        value: https://zoho-recruit-arena.onrender.com
       - key: SUPABASE_URL
         value: https://dtrqnzbbcolnkcufjbhh.supabase.co
       - key: SUPABASE_SECRET_KEY

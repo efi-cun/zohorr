@@ -4,7 +4,7 @@ import json
 import csv
 import io
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -103,8 +103,20 @@ async def register_player_endpoint(req: RegisterRequest):
     }
 
 @app.get("/api/network-ip")
-async def network_ip_endpoint():
-    public_url = os.getenv("PUBLIC_WEB_URL")
+async def network_ip_endpoint(request: Request):
+    public_url = os.getenv("PUBLIC_WEB_URL") or os.getenv("RENDER_EXTERNAL_URL")
+    
+    # Auto-detect public host from request headers if accessed through reverse proxy (e.g. Render / Cloudflare)
+    if not public_url:
+        forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+        if forwarded_host and ("onrender.com" in forwarded_host or "trycloudflare.com" in forwarded_host):
+            forwarded_proto = request.headers.get("x-forwarded-proto", "https")
+            public_url = f"{forwarded_proto}://{forwarded_host}"
+
+    # Default Render domain fallback if running on Render environment (default port 10000 or RENDER flag)
+    if not public_url and (os.getenv("RENDER") or PORT == 10000 or os.getenv("PORT") == "10000"):
+        public_url = "https://zoho-recruit-arena.onrender.com"
+
     if public_url:
         return {
             "ip": "Web Public",

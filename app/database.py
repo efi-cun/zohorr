@@ -82,30 +82,38 @@ def init_db():
             for ddl in ddl_statements:
                 cur.execute(ddl)
             
-            # Seed questions if empty
-            cur.execute("SELECT COUNT(*) FROM recruit_questions;")
-            count = cur.fetchone()[0]
-            if count == 0:
-                from app.questions_data import ZOHO_RECRUIT_QUESTIONS
-                for q in ZOHO_RECRUIT_QUESTIONS:
-                    cur.execute("""
-                        INSERT INTO recruit_questions 
-                        (id, order_num, type, category, title, question_text, options, correct_answer, explanation, time_limit_sec, points_base)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-                    """, (
-                        q["id"],
-                        q["order_num"],
-                        q["type"],
-                        q["category"],
-                        q["title"],
-                        q["question_text"],
-                        json.dumps(q["options"]),
-                        json.dumps(q.get("correct_order") or q.get("correct_answer")),
-                        q.get("explanation", ""),
-                        q.get("time_limit_sec", 25),
-                        q.get("points_base", 1000)
-                    ))
-                logger.info(f"Seeded {len(ZOHO_RECRUIT_QUESTIONS)} Zoho Recruit questions into database.")
+            # Synchronize questions with latest ZOHO_RECRUIT_QUESTIONS definition
+            from app.questions_data import ZOHO_RECRUIT_QUESTIONS
+            for q in ZOHO_RECRUIT_QUESTIONS:
+                cur.execute("""
+                    INSERT INTO recruit_questions 
+                    (id, order_num, type, category, title, question_text, options, correct_answer, explanation, time_limit_sec, points_base)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        order_num = EXCLUDED.order_num,
+                        type = EXCLUDED.type,
+                        category = EXCLUDED.category,
+                        title = EXCLUDED.title,
+                        question_text = EXCLUDED.question_text,
+                        options = EXCLUDED.options,
+                        correct_answer = EXCLUDED.correct_answer,
+                        explanation = EXCLUDED.explanation,
+                        time_limit_sec = EXCLUDED.time_limit_sec,
+                        points_base = EXCLUDED.points_base;
+                """, (
+                    q["id"],
+                    q["order_num"],
+                    q["type"],
+                    q["category"],
+                    q["title"],
+                    q["question_text"],
+                    json.dumps(q["options"]),
+                    json.dumps(q.get("correct_order") or q.get("correct_answer")),
+                    q.get("explanation", ""),
+                    q.get("time_limit_sec", 25),
+                    q.get("points_base", 1000)
+                ))
+            logger.info(f"Synchronized {len(ZOHO_RECRUIT_QUESTIONS)} Zoho Recruit questions into database.")
         conn.commit()
         logger.info("Supabase database tables successfully initialized.")
     except Exception as e:

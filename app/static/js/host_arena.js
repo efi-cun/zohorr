@@ -46,9 +46,18 @@ function setupAudioButton() {
 
 async function setupNetworkAndQR() {
   try {
-    const res = await fetch('/api/network-ip');
-    const data = await res.json();
-    const joinUrl = `${data.join_url}?pin=${currentRoomCode}`;
+    const isPublicHost = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    let joinUrl = "";
+
+    if (isPublicHost) {
+      // In production/Render, always match the active public origin HTTPS domain
+      joinUrl = `${window.location.origin}/?pin=${currentRoomCode}`;
+    } else {
+      const res = await fetch('/api/network-ip');
+      const data = await res.json();
+      const base = data.join_url.endsWith('/') ? data.join_url : data.join_url + '/';
+      joinUrl = `${base}?pin=${currentRoomCode}`;
+    }
     
     document.getElementById('joinUrlText').innerText = joinUrl;
     document.getElementById('headerPin').innerText = currentRoomCode;
