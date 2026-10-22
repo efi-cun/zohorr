@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: zoho-recruit-cyber-arena
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SUPABASE_URL
+        value: https://dtrqnzbbcolnkcufjbhh.supabase.co
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.12.0
